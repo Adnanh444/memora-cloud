@@ -9,9 +9,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import com.adnan.memora.R
+import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.ui.screens.*
 
 private enum class Tab(val route: String, val label: Int, val icon: ImageVector) {
@@ -25,6 +29,7 @@ private enum class Tab(val route: String, val label: Int, val icon: ImageVector)
 @Composable
 fun MemoraApp() {
     val nav = rememberNavController()
+    val gallery: GalleryViewModel = viewModel()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
     Scaffold(
@@ -49,12 +54,20 @@ fun MemoraApp() {
         }
     ) { pad ->
         NavHost(nav, startDestination = Tab.Photos.route, modifier = Modifier.padding(pad)) {
-            composable(Tab.Photos.route) { PlaceholderScreen(R.string.nav_photos) }
-            composable(Tab.Cloud.route) { PlaceholderScreen(R.string.nav_cloud) }
-            composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people) }
-            composable(Tab.Albums.route) { PlaceholderScreen(R.string.nav_albums) }
+            composable(Tab.Photos.route) {
+                PhotosScreen(gallery, onOpen = { nav.navigate("viewer/$it") })
+            }
+            composable(Tab.Cloud.route) { PlaceholderScreen(R.string.nav_cloud, Icons.Filled.Cloud) }
+            composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
+            composable(Tab.Albums.route) { PlaceholderScreen(R.string.nav_albums, Icons.Filled.PhotoAlbum) }
             composable(Tab.Settings.route) { SettingsScreen(onAbout = { nav.navigate("about") }) }
             composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
+            composable(
+                "viewer/{index}",
+                arguments = listOf(navArgument("index") { type = NavType.IntType }),
+            ) { e ->
+                ViewerScreen(gallery, e.arguments?.getInt("index") ?: 0, onBack = { nav.popBackStack() })
+            }
         }
     }
 }

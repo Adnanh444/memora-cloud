@@ -12,4 +12,40 @@
     <string name="copyright">© 2026 Adnan</string>
     <string name="version">Version %1$s</string>
     <string name="back">Back</string>
+    <string name="open_source">Open source · Your data stays yours</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="perm_title">Show your photos and videos</string>
+    <string name="perm_body">Memora reads the photos and videos on this phone so you can browse them. Nothing leaves your phone until you set up backup.</string>
+    <string name="perm_grant">Allow access</string>
+    <string name="perm_settings">Open app settings</string>
+    <string name="filter_all">All</string>
+    <string name="filter_photos">Photos</string>
+    <string name="filter_videos">Videos</string>
+    <string name="folders_all">All folders</string>
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="empty_gallery">No photos or videos found</string>
+    <string name="selected_count">%1$d selected</string>
+    <string name="select_all">Select all</string>
+    <string name="clear_selection">Clear selection</string>
+    <string name="refresh">Refresh</string>
+    <string name="details">Details</string>
+    <string name="play_video">Play video</string>
+    <string name="d_name">Name</string>
+    <string name="d_type">Type</string>
+    <string name="d_size">Size</string>
+    <string name="d_resolution">Resolution</string>
+    <string name="d_duration">Duration</string>
+    <string name="d_taken">Date taken</string>
+    <string name="d_modified">Last modified</string>
+    <string name="d_folder">Folder</string>
+
+    <string name="settings_general">General</string>
+    <string name="appearance">Appearance</string>
+    <string name="language">Language</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="lang_system">System default</string>
 </resources>
