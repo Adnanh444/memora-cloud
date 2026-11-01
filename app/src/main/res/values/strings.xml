@@ -49,4 +49,12 @@
     <string name="theme_dark">Dark</string>
     <string name="lang_system">System default</string>
     <string name="items_count">%1$d items</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
+    <string name="select_items">Select items</string>
+    <string name="select_mode">Select</string>
+    <string name="delete_title">Delete %1$d item(s) from this phone?</string>
+    <string name="delete_body_trash">They will be moved to the trash of your phone and can be recovered for about 30 days. Cloud backups are never touched.</string>
+    <string name="delete_body_perm">They will be permanently deleted from this phone. Cloud backups are never touched.</string>
+    <string name="delete_failed">Could not delete some items</string>
 </resources>

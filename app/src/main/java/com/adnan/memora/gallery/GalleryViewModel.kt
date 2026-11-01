@@ -17,6 +17,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     val typeFilter = MutableStateFlow(TypeFilter.ALL)
     val bucket = MutableStateFlow<String?>(null)
     val selection = MutableStateFlow<Set<String>>(emptySet())
+    val selectMode = MutableStateFlow(false)
 
     val buckets: StateFlow<List<String>> = all
         .map { list -> list.groupingBy { it.bucket }.eachCount().entries.sortedByDescending { it.value }.map { it.key } }
@@ -43,9 +44,12 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun toggle(key: String) {
+        selectMode.value = true
         selection.value = selection.value.let { if (key in it) it - key else it + key }
     }
 
-    fun selectAll() { selection.value = visible.value.map { it.key }.toSet() }
-    fun clearSelection() { selection.value = emptySet() }
+    fun enterSelectMode() { selectMode.value = true }
+    fun selectAll() { selectMode.value = true; selection.value = visible.value.map { it.key }.toSet() }
+    fun clearSelection() { selection.value = emptySet(); selectMode.value = false }
+    fun selectedMedia(): List<LocalMedia> = all.value.filter { it.key in selection.value }
 }

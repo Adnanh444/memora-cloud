@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,7 +65,8 @@ private fun requiredMediaPermissions(): Array<String> = when {
     Build.VERSION.SDK_INT >= 33 -> arrayOf(
         Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO,
     )
-    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    Build.VERSION.SDK_INT >= 29 -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
 }
 
 private fun hasMediaAccess(c: Context): Boolean = requiredMediaPermissions().any {
@@ -130,8 +132,16 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
     val bucket by vm.bucket.collectAsState()
     val type by vm.typeFilter.collectAsState()
     val loading by vm.loading.collectAsState()
-    val selecting = selection.isNotEmpty()
+    val selectMode by vm.selectMode.collectAsState()
+    val selecting = selectMode || selection.isNotEmpty()
     BackHandler(selecting) { vm.clearSelection() }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val deleteAction = rememberDeleteAction(onDone = { vm.clearSelection(); vm.refresh() })
+    if (confirmDelete) DeleteConfirmDialog(
+        count = selection.size,
+        onConfirm = { confirmDelete = false; deleteAction(vm.selectedMedia()) },
+        onDismiss = { confirmDelete = false },
+    )
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Crossfade(selecting, label = "header") { sel ->
@@ -140,10 +150,18 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
                     IconButton(onClick = { vm.clearSelection() }) {
                         Icon(Icons.Filled.Close, stringResource(R.string.clear_selection))
                     }
-                    Text(stringResource(R.string.selected_count, selection.size),
+                    Text(
+                        if (selection.isEmpty()) stringResource(R.string.select_items)
+                        else stringResource(R.string.selected_count, selection.size),
                         style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     IconButton(onClick = { vm.selectAll() }) {
                         Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all))
+                    }
+                    IconButton(onClick = { shareMedia(ctx, vm.selectedMedia()) }, enabled = selection.isNotEmpty()) {
+                        Icon(Icons.Filled.Share, stringResource(R.string.share))
+                    }
+                    IconButton(onClick = { confirmDelete = true }, enabled = selection.isNotEmpty()) {
+                        Icon(Icons.Filled.Delete, stringResource(R.string.delete))
                     }
                 }
             } else {
@@ -152,6 +170,9 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
                         GradientTitle(stringResource(R.string.nav_photos))
                         Text(stringResource(R.string.items_count, items.size), style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { vm.enterSelectMode() }) {
+                        Icon(Icons.Outlined.CheckCircle, stringResource(R.string.select_mode))
                     }
                     IconButton(onClick = { vm.refresh() }) {
                         Icon(Icons.Filled.Refresh, stringResource(R.string.refresh))

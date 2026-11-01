@@ -49,4 +49,12 @@
     <string name="theme_dark">ডার্ক</string>
     <string name="lang_system">সিস্টেম ডিফল্ট</string>
     <string name="items_count">%1$dটি আইটেম</string>
+    <string name="share">শেয়ার</string>
+    <string name="delete">মুছুন</string>
+    <string name="select_items">আইটেম নির্বাচন করুন</string>
+    <string name="select_mode">নির্বাচন</string>
+    <string name="delete_title">এই ফোন থেকে %1$dটি আইটেম মুছবেন?</string>
+    <string name="delete_body_trash">এগুলো আপনার ফোনের ট্র্যাশে সরানো হবে এবং প্রায় ৩০ দিন পর্যন্ত ফেরত আনা যাবে। ক্লাউড ব্যাকআপে কোনো পরিবর্তন হবে না।</string>
+    <string name="delete_body_perm">এগুলো এই ফোন থেকে স্থায়ীভাবে মুছে যাবে। ক্লাউড ব্যাকআপে কোনো পরিবর্তন হবে না।</string>
+    <string name="delete_failed">কিছু আইটেম মোছা যায়নি</string>
 </resources>

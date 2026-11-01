@@ -14,7 +14,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,6 +46,8 @@ fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val pager = rememberPagerState(initialPage = startIndex.coerceIn(0, items.lastIndex)) { items.size }
     var showInfo by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val deleteAction = rememberDeleteAction(onDone = { vm.refresh() })
     val white = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -85,10 +89,22 @@ fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
             }
             Text(current.name, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f))
+            IconButton(onClick = { shareMedia(ctx, listOf(current)) }, colors = white) {
+                Icon(Icons.Filled.Share, stringResource(R.string.share))
+            }
+            IconButton(onClick = { confirmDelete = true }, colors = white) {
+                Icon(Icons.Filled.Delete, stringResource(R.string.delete))
+            }
             IconButton(onClick = { showInfo = !showInfo }, colors = white) {
                 Icon(Icons.Filled.Info, stringResource(R.string.details))
             }
         }
+
+        if (confirmDelete) DeleteConfirmDialog(
+            count = 1,
+            onConfirm = { confirmDelete = false; deleteAction(listOf(current)) },
+            onDismiss = { confirmDelete = false },
+        )
 
         AnimatedVisibility(
             visible = showInfo,

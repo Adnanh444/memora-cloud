@@ -1,8 +1,8 @@
 # Changelog
-## 0.2.1 — Phase 2.1: Futuristic UI + smaller APK
-- Neon "deep space" theme (dark default) with animated aurora background, glass surfaces, gradient titles.
-- Floating animated navigation bar, animated screen transitions, staggered entrances.
-- Gallery: animated cells (entrance, press, selection), shimmer loading skeleton, depth-effect viewer.
-- Release build with R8 + resource shrinking, only en/bn resources, unused WorkManager removed (APK much smaller).
-## 0.2.0 — Phase 2: Local Gallery
-## 0.1.0 — Phase 1
+## 0.2.2 — Share and Delete from device
+- Share (single and multiple) from the grid selection bar and the viewer.
+- Delete from device with confirmation: moves to the phone trash on Android 11+ (recoverable ~30 days);
+  never touches cloud backups. New "Select" button in the header.
+## 0.2.1 — Futuristic UI + smaller APK
+## 0.2.0 — Local Gallery
+## 0.1.0 — Foundation
