@@ -1,9 +1,8 @@
 # Changelog
+## 0.2.1 — Phase 2.1: Futuristic UI + smaller APK
+- Neon "deep space" theme (dark default) with animated aurora background, glass surfaces, gradient titles.
+- Floating animated navigation bar, animated screen transitions, staggered entrances.
+- Gallery: animated cells (entrance, press, selection), shimmer loading skeleton, depth-effect viewer.
+- Release build with R8 + resource shrinking, only en/bn resources, unused WorkManager removed (APK much smaller).
 ## 0.2.0 — Phase 2: Local Gallery
-- New launcher logo, refreshed Material 3 look.
-- Appearance (System/Light/Dark) and Language (System/English/Bangla) settings.
-- Local gallery from MediaStore: permission flow, date-wise grid, photo/video + folder filters,
-  multi-select, full-screen swipe viewer, file details.
-- Videos open in the phone's video player (in-app player arrives with the Cloud library).
 ## 0.1.0 — Phase 1
-- Project scaffold, Material 3 theme, bottom navigation, About screen, Room schema, CI build.

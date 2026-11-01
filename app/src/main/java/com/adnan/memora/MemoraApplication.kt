@@ -9,7 +9,7 @@ import coil.decode.VideoFrameDecoder
 
 object Prefs {
     private fun sp(c: Context) = c.getSharedPreferences("memora", Context.MODE_PRIVATE)
-    fun themeMode(c: Context): Int = sp(c).getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+    fun themeMode(c: Context): Int = sp(c).getInt("night_mode", AppCompatDelegate.MODE_NIGHT_YES)
     fun setThemeMode(c: Context, mode: Int) {
         sp(c).edit().putInt("night_mode", mode).apply()
         AppCompatDelegate.setDefaultNightMode(mode)

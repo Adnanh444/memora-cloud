@@ -10,10 +10,19 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import com.adnan.memora.ui.theme.GradientTitle
+import com.adnan.memora.ui.theme.appear
+import com.adnan.memora.ui.theme.brandBrush
+import com.adnan.memora.ui.theme.glass
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
@@ -90,7 +99,6 @@ private fun buildEntries(items: List<LocalMedia>, todayLabel: String, yesterdayL
     return out
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
     val ctx = LocalContext.current
@@ -126,23 +134,28 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
     BackHandler(selecting) { vm.clearSelection() }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        if (selecting) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { vm.clearSelection() }) {
-                    Icon(Icons.Filled.Close, stringResource(R.string.clear_selection))
+        Crossfade(selecting, label = "header") { sel ->
+            if (sel) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { vm.clearSelection() }) {
+                        Icon(Icons.Filled.Close, stringResource(R.string.clear_selection))
+                    }
+                    Text(stringResource(R.string.selected_count, selection.size),
+                        style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { vm.selectAll() }) {
+                        Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all))
+                    }
                 }
-                Text(stringResource(R.string.selected_count, selection.size),
-                    style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = { vm.selectAll() }) {
-                    Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all))
-                }
-            }
-        } else {
-            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.nav_photos), style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                IconButton(onClick = { vm.refresh() }) {
-                    Icon(Icons.Filled.Refresh, stringResource(R.string.refresh))
+            } else {
+                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        GradientTitle(stringResource(R.string.nav_photos))
+                        Text(stringResource(R.string.items_count, items.size), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { vm.refresh() }) {
+                        Icon(Icons.Filled.Refresh, stringResource(R.string.refresh))
+                    }
                 }
             }
         }
@@ -173,8 +186,8 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
         Spacer(Modifier.height(6.dp))
 
         if (items.isEmpty()) {
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                if (loading) CircularProgressIndicator()
+            Box(Modifier.fillMaxSize(), if (loading) Alignment.TopStart else Alignment.Center) {
+                if (loading) SkeletonGrid()
                 else Text(stringResource(R.string.empty_gallery), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
@@ -214,18 +227,45 @@ fun PhotosScreen(vm: GalleryViewModel, onOpen: (Int) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MediaCell(m: LocalMedia, selected: Boolean, selecting: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    // entrance animation (fade + gentle zoom) as the cell scrolls into view
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(380), label = "cellAlpha")
+    val enter by animateFloatAsState(if (shown) 1f else 0.86f, tween(380, easing = FastOutSlowInEasing), label = "cellEnter")
+    // press feedback
+    var pressed by remember { mutableStateOf(false) }
+    val press by animateFloatAsState(if (pressed) 0.93f else 1f,
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "cellPress")
     val pad by animateDpAsState(if (selected) 10.dp else 0.dp, label = "pad")
-    Box(Modifier.aspectRatio(1f).combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
+    val tick by animateFloatAsState(if (selected) 1f else 0f,
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "tick")
+    val onClickL by rememberUpdatedState(onClick)
+    val onLongL by rememberUpdatedState(onLongClick)
+    val shape = RoundedCornerShape(if (selected) 14.dp else 8.dp)
+    val brand = brandBrush()
+
+    Box(
+        Modifier.aspectRatio(1f)
+            .graphicsLayer { this.alpha = alpha; val sc = enter * press; scaleX = sc; scaleY = sc }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                    onTap = { onClickL() },
+                    onLongPress = { onLongL() },
+                )
+            }
+    ) {
         AsyncImage(
             model = m.uri, contentDescription = m.name, contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().padding(pad).clip(RoundedCornerShape(if (selected) 12.dp else 6.dp)),
+            modifier = Modifier.fillMaxSize().padding(pad).clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .then(if (selected) Modifier.border(2.dp, brand, shape) else Modifier),
         )
         if (m.isVideo) {
             Row(
-                Modifier.align(Alignment.BottomStart).padding(6.dp).clip(RoundedCornerShape(50))
+                Modifier.align(Alignment.BottomStart).padding(7.dp).clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -237,7 +277,30 @@ private fun MediaCell(m: LocalMedia, selected: Boolean, selecting: Boolean, onCl
             Icon(
                 if (selected) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked, null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else Color.White,
-                modifier = Modifier.align(Alignment.TopStart).padding(8.dp).size(22.dp),
+                modifier = Modifier.align(Alignment.TopStart).padding(9.dp).size(22.dp)
+                    .graphicsLayer { val k = 0.8f + 0.4f * tick; scaleX = k; scaleY = k },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkeletonGrid() {
+    val t = rememberInfiniteTransition(label = "shimmer")
+    val x by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1200, easing = LinearEasing)), label = "x")
+    val base = MaterialTheme.colorScheme.surfaceContainer
+    val hi = MaterialTheme.colorScheme.surfaceContainerHighest
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(104.dp), userScrollEnabled = false,
+        contentPadding = PaddingValues(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        items(30) {
+            Box(
+                Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp)).background(
+                    Brush.linearGradient(listOf(base, hi, base),
+                        start = Offset(x * 700f - 250f, 0f), end = Offset(x * 700f + 250f, 350f))
+                )
             )
         }
     }
@@ -246,12 +309,12 @@ private fun MediaCell(m: LocalMedia, selected: Boolean, selecting: Boolean, onCl
 @Composable
 private fun PermissionPrompt(onGrant: () -> Unit, onSettings: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().padding(32.dp),
+        Modifier.fillMaxSize().statusBarsPadding().padding(32.dp).appear(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(Modifier.size(96.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), Alignment.Center) {
-            Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(44.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Box(Modifier.size(104.dp).glass(CircleShape), Alignment.Center) {
+            Icon(Icons.Filled.PhotoLibrary, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(20.dp))
         Text(stringResource(R.string.perm_title), style = MaterialTheme.typography.titleLarge,

@@ -48,4 +48,5 @@
     <string name="theme_light">লাইট</string>
     <string name="theme_dark">ডার্ক</string>
     <string name="lang_system">সিস্টেম ডিফল্ট</string>
+    <string name="items_count">%1$dটি আইটেম</string>
 </resources>

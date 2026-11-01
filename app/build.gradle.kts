@@ -12,14 +12,19 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
+        // Keep only the languages the app supports (strips unused library translations).
+        resourceConfigurations += listOf("en", "bn")
     }
     buildTypes {
         release {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            // Release signing is injected in CI from GitHub Secrets (never committed).
+            isMinifyEnabled = true      // R8: removes unused code (biggest size win)
+            isShrinkResources = true    // removes unused resources
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // TEMPORARY: signed with the debug key so the APK installs. A real private
+            // release key (kept in GitHub Secrets) replaces this in the signing step.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -28,6 +33,14 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}", "META-INF/*.version",
+                "DebugProbesKt.bin", "kotlin-tooling-metadata.json",
+            )
+        }
+    }
 }
 
 dependencies {
@@ -40,15 +53,14 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-
-    implementation("androidx.work:work-runtime-ktx:2.9.1") // used from Phase 4
+    // WorkManager is added back in Phase 4 (backup engine); leaving it out keeps the APK smaller now.
 }

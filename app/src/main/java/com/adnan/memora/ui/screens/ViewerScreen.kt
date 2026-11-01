@@ -2,11 +2,16 @@ package com.adnan.memora.ui.screens
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
@@ -15,8 +20,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,6 +32,7 @@ import coil.compose.AsyncImage
 import com.adnan.memora.R
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.gallery.LocalMedia
+import kotlin.math.abs
 
 @Composable
 fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
@@ -42,7 +49,15 @@ fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
             val m = items[page.coerceIn(0, items.lastIndex)]
-            Box(Modifier.fillMaxSize(), Alignment.Center) {
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    // depth effect: neighbouring pages shrink and fade while swiping
+                    val off = abs((pager.currentPage - page) + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
+                    val s = 1f - 0.12f * off
+                    scaleX = s; scaleY = s; alpha = 1f - 0.5f * off
+                },
+                Alignment.Center,
+            ) {
                 AsyncImage(model = m.uri, contentDescription = m.name, contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize())
                 if (m.isVideo) {
@@ -60,8 +75,9 @@ fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
 
         val current = items[pager.currentPage.coerceIn(0, items.lastIndex)]
         Row(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp)
-                .background(Color.Black.copy(alpha = 0.35f)),
+            Modifier.fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)))
+                .statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack, colors = white) {
@@ -74,20 +90,25 @@ fun ViewerScreen(vm: GalleryViewModel, startIndex: Int, onBack: () -> Unit) {
             }
         }
 
-        if (showInfo) {
-            DetailsCard(current, Modifier.align(Alignment.BottomCenter))
-        }
+        AnimatedVisibility(
+            visible = showInfo,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(tween(300)) { it } + fadeIn(tween(300)),
+            exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(220)),
+        ) { DetailsCard(current) }
     }
 }
 
 @Composable
-private fun DetailsCard(m: LocalMedia, modifier: Modifier) {
+private fun DetailsCard(m: LocalMedia) {
     Card(
-        modifier = modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp),
         shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f)),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(R.string.details), style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.details), style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary)
             Row2(stringResource(R.string.d_name), m.name)
             Row2(stringResource(R.string.d_type), m.mime)
             Row2(stringResource(R.string.d_size), formatSize(m.size))
