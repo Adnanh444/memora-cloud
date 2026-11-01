@@ -8,12 +8,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          unzip -o memora-cloud-phase1.zip
+          unzip -o memora-cloud-phase2.zip
           rm -rf memora-cloud/.github
           cp -r memora-cloud/. .
-          rm -rf memora-cloud memora-cloud-phase1.zip
+          rm -rf memora-cloud memora-cloud-phase2.zip
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -A
-          git commit -m "Phase 1 project"
+          git commit -m "Phase 2: local gallery"
           git push
