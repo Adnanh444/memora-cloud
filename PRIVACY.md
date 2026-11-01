@@ -1,0 +1,2 @@
+# Privacy Policy (draft, Phase 1)
+Memora Cloud has no developer-operated server and no analytics. Media is uploaded only to a private Telegram channel owned by the user (from Phase 3). Telegram credentials are handled by Telegram's official login flow; Memora never stores your password or OTP. Face data (Phase 8) is processed on-device, encrypted, and can be deleted at any time. This policy will be finalized as features ship.

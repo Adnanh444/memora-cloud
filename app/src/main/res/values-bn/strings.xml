@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Memora Cloud</string>
+    <string name="tagline">আপনার স্মৃতি। আপনার ক্লাউড।</string>
+    <string name="nav_photos">ছবি</string>
+    <string name="nav_cloud">ক্লাউড</string>
+    <string name="nav_people">মানুষ</string>
+    <string name="nav_albums">অ্যালবাম</string>
+    <string name="nav_settings">সেটিংস</string>
+    <string name="coming_soon">পরবর্তী ধাপে আসছে</string>
+    <string name="about">Memora Cloud সম্পর্কে</string>
+    <string name="developed_by">ডেভেলপ করেছেন Adnan</string>
+    <string name="copyright">© ২০২৬ Adnan</string>
+    <string name="version">ভার্সন %1$s</string>
+    <string name="back">ফিরে যান</string>
+</resources>
