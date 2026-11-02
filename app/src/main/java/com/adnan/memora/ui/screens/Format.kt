@@ -24,3 +24,6 @@ fun formatDuration(ms: Long): String {
 
 fun formatDateTime(ms: Long): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms))
+
+fun formatDateLong(ms: Long): String = DateFormat.getDateInstance(DateFormat.LONG).format(Date(ms))
+fun formatTime(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))

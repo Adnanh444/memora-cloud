@@ -17,3 +17,6 @@ data class LocalMedia(
 ) {
     val key: String get() = uri.toString()
 }
+
+/** An item in the phone's trash (Android 11+). */
+data class TrashedMedia(val media: LocalMedia, val expiresAt: Long)

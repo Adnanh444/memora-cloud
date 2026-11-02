@@ -12,15 +12,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import com.adnan.memora.R
 import com.adnan.memora.gallery.LocalMedia
 
@@ -53,7 +46,7 @@ private class DeleteState { var pending: List<Uri> = emptyList(); var run: (List
 
 /**
  * "Delete from device". Only ever touches the local file.
- * Android 11+: moves to the phone's trash through the system confirmation dialog (recoverable).
+ * Android 11+: moves to the phone's trash through the system confirmation dialog (recoverable 30 days).
  * Android 8-10: deletes directly (asking Android for permission where required).
  */
 @Composable
@@ -98,16 +91,30 @@ fun rememberDeleteAction(onDone: () -> Unit): (List<LocalMedia>) -> Unit {
     }
 }
 
+class BinActions(val restore: (List<Uri>) -> Unit, val deleteForever: (List<Uri>) -> Unit)
+
+/** Restore from / permanently delete from the phone's bin (Android 11+). Android shows its own confirmation. */
 @Composable
-fun DeleteConfirmDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Filled.Delete, null) },
-        title = { Text(stringResource(R.string.delete_title, count)) },
-        text = {
-            Text(stringResource(if (Build.VERSION.SDK_INT >= 30) R.string.delete_body_trash else R.string.delete_body_perm))
-        },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.delete)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+fun rememberBinActions(onDone: () -> Unit): BinActions {
+    val ctx = LocalContext.current
+    val onDoneL by rememberUpdatedState(onDone)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+        if (r.resultCode == Activity.RESULT_OK) onDoneL()
+    }
+    return remember(launcher) {
+        BinActions(
+            restore = { uris ->
+                if (Build.VERSION.SDK_INT >= 30 && uris.isNotEmpty()) {
+                    val pi = MediaStore.createTrashRequest(ctx.contentResolver, uris, false)
+                    launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+                }
+            },
+            deleteForever = { uris ->
+                if (Build.VERSION.SDK_INT >= 30 && uris.isNotEmpty()) {
+                    val pi = MediaStore.createDeleteRequest(ctx.contentResolver, uris)
+                    launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+                }
+            },
+        )
+    }
 }

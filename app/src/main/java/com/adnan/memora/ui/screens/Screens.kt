@@ -97,13 +97,13 @@ fun SettingsScreen(onAbout: () -> Unit) {
         }
     }
 
-    if (showTheme) ChoiceDialog(
+    if (showTheme) ChoiceSheet(
         title = stringResource(R.string.appearance),
         options = themeModes.map { it.second to (it.first == night) },
         onPick = { Prefs.setThemeMode(ctx, themeModes[it].first); showTheme = false },
         onDismiss = { showTheme = false },
     )
-    if (showLang) ChoiceDialog(
+    if (showLang) ChoiceSheet(
         title = stringResource(R.string.language),
         options = langs.map { it.second to (it.first == langTag) },
         onPick = {
@@ -127,34 +127,6 @@ private fun SettingRow(icon: ImageVector, title: String, subtitle: String?, onCl
         headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
         supportingContent = subtitle?.let { { Text(it) } },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
-    )
-}
-
-@Composable
-private fun ChoiceDialog(
-    title: String,
-    options: List<Pair<String, Boolean>>,
-    onPick: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                options.forEachIndexed { i, (label, selected) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(i) }.padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected, onClick = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text(label)
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

@@ -35,7 +35,7 @@ private enum class Tab(val route: String, val label: Int, val icon: ImageVector)
     Photos("photos", R.string.nav_photos, Icons.Filled.PhotoLibrary),
     Cloud("cloud", R.string.nav_cloud, Icons.Filled.Cloud),
     People("people", R.string.nav_people, Icons.Filled.People),
-    Albums("albums", R.string.nav_albums, Icons.Filled.PhotoAlbum),
+    Library("library", R.string.nav_library, Icons.Filled.PhotoAlbum),
     Settings("settings", R.string.nav_settings, Icons.Filled.Settings),
 }
 
@@ -75,19 +75,27 @@ fun MemoraApp() {
                 popExitTransition = { fadeOut(tween(150)) + scaleOut(tween(200), targetScale = 1.05f) },
             ) {
                 composable(Tab.Photos.route) {
-                    PhotosScreen(gallery, onOpen = { nav.navigate("viewer/$it") })
+                    PhotosScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onSearch = { nav.navigate("search") })
                 }
                 composable(Tab.Cloud.route) { PlaceholderScreen(R.string.nav_cloud, Icons.Filled.Cloud) }
                 composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
-                composable(Tab.Albums.route) { PlaceholderScreen(R.string.nav_albums, Icons.Filled.PhotoAlbum) }
+                composable(Tab.Library.route) {
+                    LibraryScreen(
+                        gallery,
+                        onFolder = { name -> gallery.openFolderName = name; nav.navigate("folder") },
+                        onBin = { nav.navigate("bin") },
+                    )
+                }
                 composable(Tab.Settings.route) { SettingsScreen(onAbout = { nav.navigate("about") }) }
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
-                composable(
-                    "viewer/{index}",
-                    arguments = listOf(navArgument("index") { type = NavType.IntType }),
-                ) { e ->
-                    ViewerScreen(gallery, e.arguments?.getInt("index") ?: 0, onBack = { nav.popBackStack() })
+                composable("viewer") { ViewerScreen(gallery, onBack = { nav.popBackStack() }) }
+                composable("search") {
+                    SearchScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
                 }
+                composable("folder") {
+                    FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
+                }
+                composable("bin") { BinScreen(gallery, onBack = { nav.popBackStack() }) }
             }
         }
     }

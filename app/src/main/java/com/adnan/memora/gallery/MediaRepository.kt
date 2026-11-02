@@ -3,6 +3,8 @@ package com.adnan.memora.gallery
 import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
+import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,10 +13,18 @@ import kotlinx.coroutines.withContext
 class MediaRepository(private val ctx: Context) {
 
     suspend fun loadAll(): List<LocalMedia> = withContext(Dispatchers.IO) {
-        (query(false) + query(true)).sortedByDescending { it.dateTaken }
+        (rows(false, false) + rows(true, false)).map { it.first }.sortedByDescending { it.dateTaken }
     }
 
-    private fun query(video: Boolean): List<LocalMedia> {
+    /** Items in the system trash (Android 11+). Older Android has no trash. */
+    suspend fun loadTrashed(): List<TrashedMedia> = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < 30) emptyList()
+        else (rows(false, true) + rows(true, true))
+            .map { TrashedMedia(it.first, it.second) }
+            .sortedByDescending { it.media.dateTaken }
+    }
+
+    private fun rows(video: Boolean, trashed: Boolean): List<Pair<LocalMedia, Long>> {
         val base = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val cols = arrayListOf(
@@ -25,29 +35,37 @@ class MediaRepository(private val ctx: Context) {
             "bucket_display_name",
         )
         if (video) cols.add("duration")
-        val out = ArrayList<LocalMedia>()
+        if (trashed) cols.add("date_expires")
+        val out = ArrayList<Pair<LocalMedia, Long>>()
         try {
-            ctx.contentResolver.query(base, cols.toTypedArray(), null, null, null)?.use { c ->
+            val cursor: Cursor? = if (trashed) {
+                val args = Bundle().apply {
+                    putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+                }
+                ctx.contentResolver.query(base, cols.toTypedArray(), args, null)
+            } else {
+                ctx.contentResolver.query(base, cols.toTypedArray(), null, null, null)
+            }
+            cursor?.use { c ->
                 while (c.moveToNext()) {
                     val size = c.long("_size")
                     if (size <= 0) continue
                     val modified = c.long("date_modified") * 1000
                     val taken = c.long("datetaken").let { if (it > 0) it else modified }
-                    out.add(
-                        LocalMedia(
-                            uri = ContentUris.withAppendedId(base, c.long("_id")),
-                            name = c.str("_display_name") ?: "",
-                            mime = c.str("mime_type") ?: if (video) "video/*" else "image/*",
-                            size = size,
-                            dateTaken = taken,
-                            dateModified = modified,
-                            width = c.long("width").toInt(),
-                            height = c.long("height").toInt(),
-                            durationMs = if (video) c.long("duration") else 0L,
-                            isVideo = video,
-                            bucket = c.str("bucket_display_name") ?: "Other",
-                        )
+                    val media = LocalMedia(
+                        uri = ContentUris.withAppendedId(base, c.long("_id")),
+                        name = c.str("_display_name") ?: "",
+                        mime = c.str("mime_type") ?: if (video) "video/*" else "image/*",
+                        size = size,
+                        dateTaken = taken,
+                        dateModified = modified,
+                        width = c.long("width").toInt(),
+                        height = c.long("height").toInt(),
+                        durationMs = if (video) c.long("duration") else 0L,
+                        isVideo = video,
+                        bucket = c.str("bucket_display_name") ?: "Other",
                     )
+                    out.add(media to (if (trashed) c.long("date_expires") * 1000 else 0L))
                 }
             }
         } catch (_: SecurityException) {
