@@ -1,4 +1,5 @@
 # Changelog
+## 0.4.2 — Permanent signing key support (updates install over the old app)
 ## 0.4.1 — Each user enters their own Telegram API key (stored encrypted on the phone)
 ## 0.4.0 — Phase 3: Telegram connection
 - Telegram login (phone, code, two-step password) via TDLib; encrypted session; private channel creation and ownership/ID verification; Telegram storage screen.

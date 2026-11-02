@@ -16,8 +16,8 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.4.1"
+        versionCode = 8
+        versionName = "0.4.2"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
         buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())
@@ -25,14 +25,26 @@ android {
         // TDLib is large; ship only 64-bit ARM (all phones since ~2016) to keep the APK smaller.
         ndk { abiFilters += listOf("arm64-v8a") }
     }
+    signingConfigs {
+        create("release") {
+            val path = System.getenv("KEYSTORE_FILE")
+            if (!path.isNullOrBlank() && File(path).exists()) {
+                storeFile = File(path)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true      // R8: removes unused code (biggest size win)
             isShrinkResources = true    // removes unused resources
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // TEMPORARY: signed with the debug key so the APK installs. A real private
-            // release key (kept in GitHub Secrets) replaces this in the signing step.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the permanent private key from GitHub Secrets when available.
+            // (Falls back to the debug key only if the secrets are missing.)
+            signingConfig = if (System.getenv("KEYSTORE_FILE").isNullOrBlank())
+                signingConfigs.getByName("debug") else signingConfigs.getByName("release")
         }
     }
     compileOptions {
