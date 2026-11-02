@@ -101,7 +101,12 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                 exit = slideOutVertically { it } + fadeOut(),
             ) {
                 Row(
-                    Modifier.padding(16.dp).glass(RoundedCornerShape(30.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+                    Modifier.padding(16.dp)
+    .background(
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+        RoundedCornerShape(30.dp)
+    )
+    .padding(horizontal = 6.dp, vertical = 6.dp)
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     TextButton(onClick = { bin.restore(chosen) }) {
