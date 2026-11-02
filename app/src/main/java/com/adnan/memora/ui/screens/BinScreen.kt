@@ -94,26 +94,12 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     }
                 }
             }
-            AnimatedVisibility(
+            BinActionBar(
                 visible = selected.isNotEmpty(),
+                onRestore = { bin.restore(chosen) },
+                onDelete = { confirmForever = true },
                 modifier = Modifier.align(Alignment.BottomCenter),
-                enter = slideInVertically { it } + fadeIn(),
-                exit = slideOutVertically { it } + fadeOut(),
-            ) {
-                Row(
-                    Modifier.padding(16.dp).glass (RoundedCornerShape(30.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    TextButton(onClick = { bin.restore(chosen) }) {
-                        Icon(Icons.Filled.RestoreFromTrash, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.restore))
-                    }
-                    TextButton(onClick = { confirmForever = true }) {
-                        Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error)
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.delete_forever), color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
+            )
         }
     }
 }
@@ -137,6 +123,33 @@ private fun BinCell(t: TrashedMedia, selected: Boolean, onClick: () -> Unit) {
         if (selected) {
             Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.TopStart).padding(9.dp).size(22.dp))
+        }
+    }
+}
+
+/** Bottom action bar of the bin. Kept as its own top-level function so AnimatedVisibility resolves correctly. */
+@Composable
+private fun BinActionBar(visible: Boolean, onRestore: () -> Unit, onDelete: () -> Unit, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut(),
+    ) {
+        Row(
+            Modifier.padding(16.dp).glass(RoundedCornerShape(30.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            TextButton(onClick = onRestore) {
+                Icon(Icons.Filled.RestoreFromTrash, null)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.restore))
+            }
+            TextButton(onClick = onDelete) {
+                Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.delete_forever), color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }
