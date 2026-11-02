@@ -154,4 +154,23 @@
     <string name="tg_cred_change">অন্য API কী ব্যবহার করুন</string>
     <string name="tg_cred_invalid">api_id অবশ্যই সংখ্যা এবং api_hash অবশ্যই ৩২টি অক্ষর ও সংখ্যা (0-9, a-f) হতে হবে। অনুগ্রহ করে দেখে আবার চেষ্টা করুন।</string>
     <string name="tg_cred_privacy">আপনার কী এনক্রিপ্ট করে শুধু এই ফোনে রাখা হয়। এটি ডেভেলপার বা GitHub-এ কখনো পাঠানো হয় না।</string>
+    <!-- Phase 4: backup engine -->
+    <string name="backup_action">ব্যাকআপ করুন</string>
+    <string name="backup_queued">%1$dটি ব্যাকআপে যোগ হয়েছে</string>
+    <string name="backup_need_telegram">আগে টেলিগ্রাম সংযুক্ত করুন এবং স্টোরেজ চ্যানেল তৈরি করুন (সেটিংস → টেলিগ্রাম স্টোরেজ)।</string>
+    <string name="backup_ready">ব্যাকআপ প্রস্তুত · ছবি বেছে নিয়ে ক্লাউড আইকনে ট্যাপ করুন</string>
+    <string name="backup_some_failed">%1$dটি ব্যর্থ হয়েছে</string>
+    <string name="backup_retry">আবার চেষ্টা</string>
+    <string name="auto_backup">স্বয়ংক্রিয় ব্যাকআপ</string>
+    <string name="auto_confirm_title">“%1$s” স্বয়ংক্রিয়ভাবে ব্যাকআপ করবেন?</string>
+    <string name="auto_confirm_body">এই ফোল্ডারের সব %1$dটি ছবি ও ভিডিও আপনার ব্যক্তিগত টেলিগ্রাম চ্যানেলে আপলোড হবে, এবং নতুনগুলো নিজে থেকেই যোগ হবে। যেকোনো সময় বন্ধ করতে পারবেন।</string>
+    <string name="auto_confirm_yes">চালু করুন</string>
+    <string name="wifi_only">শুধু ওয়াই-ফাইয়ে ব্যাকআপ</string>
+    <string name="wifi_only_sub">মোবাইল ডেটা বাঁচায়</string>
+    <string name="backup_err_too_big">ফাইলটি ২ জিবির বেশি, টেলিগ্রাম এটি নেয় না।</string>
+    <string name="backup_err_missing">ফাইলটি আর এই ফোনে নেই।</string>
+    <string name="backup_err_verify">টেলিগ্রাম আপলোড নিশ্চিত করেনি।</string>
+    <string name="backup_channel">ব্যাকআপের অগ্রগতি</string>
+    <string name="backup_notif_title">Memora Cloud ব্যাকআপ করছে</string>
+    <string name="backup_notif_text">প্রস্তুত হচ্ছে…</string>
 </resources>

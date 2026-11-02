@@ -1,6 +1,13 @@
 package com.adnan.memora.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -311,6 +318,19 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
     var confirm by remember { mutableStateOf(false) }
     val deleteAction = rememberDeleteAction(onDone = { vm.clearSelection(); vm.refresh() })
     BackHandler { vm.clearSelection() }
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val backUp = {
+        val n = selection.size
+        if (vm.backUp(vm.selectedMedia())) {
+            Toast.makeText(ctx, ctx.getString(R.string.backup_queued, n), Toast.LENGTH_SHORT).show()
+            vm.clearSelection()
+            if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            Toast.makeText(ctx, R.string.backup_need_telegram, Toast.LENGTH_LONG).show()
+        }
+    }
     if (confirm) DeleteSheet(
         count = selection.size,
         onDeletePhone = { deleteAction(vm.selectedMedia()) },
@@ -326,6 +346,9 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
         )
         IconButton(onClick = { vm.selectAll(pool) }) { Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all)) }
+        IconButton(onClick = { backUp() }, enabled = selection.isNotEmpty()) {
+            Icon(Icons.Filled.CloudUpload, stringResource(R.string.backup_action))
+        }
         IconButton(onClick = { shareMedia(ctx, vm.selectedMedia()) }, enabled = selection.isNotEmpty()) {
             Icon(Icons.Filled.Share, stringResource(R.string.share))
         }

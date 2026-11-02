@@ -8,9 +8,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 sealed class TgAuth {
     object NeedCredentials : TgAuth()
@@ -30,6 +35,11 @@ sealed class StorageStatus {
 }
 
 class TgUser(val id: Long, val name: String, val phone: String)
+
+/** An upload that did not finish. permanent = retrying the same file cannot help. */
+class TgUploadException(message: String, val permanent: Boolean) : Exception(message)
+
+private class PendingUpload(val onProgress: (Float) -> Unit, val cont: CancellableContinuation<TdApi.Message>)
 
 /**
  * Talks to Telegram through TDLib (official login: phone, code, optional two-step password).
@@ -81,8 +91,101 @@ class TelegramClient private constructor(private val app: Context) {
     }
 
     private fun onUpdate(obj: TdApi.Object) {
-        if (obj is TdApi.UpdateAuthorizationState) handleAuth(obj.authorizationState)
+        when (obj) {
+            is TdApi.UpdateAuthorizationState -> handleAuth(obj.authorizationState)
+            is TdApi.UpdateFile -> onFileUpdate(obj.file)
+            is TdApi.UpdateMessageSendSucceeded -> {
+                val p = uploads.remove(obj.oldMessageId)
+                uploadFiles.values.remove(obj.oldMessageId)
+                if (p != null && p.cont.isActive) p.cont.resume(obj.message)
+            }
+            is TdApi.UpdateMessageSendFailed -> {
+                val p = uploads.remove(obj.oldMessageId)
+                uploadFiles.values.remove(obj.oldMessageId)
+                if (p != null && p.cont.isActive) {
+                    p.cont.resumeWithException(TgUploadException("Telegram could not send this file.", false))
+                    // Clean the failed local message so it is not retried behind our back.
+                    val d = TdApi.DeleteMessages()
+                    d.chatId = obj.message.chatId
+                    d.messageIds = longArrayOf(obj.message.id)
+                    d.revoke = true
+                    client?.send(d) { }
+                }
+            }
+            else -> {}
+        }
     }
+
+    // ---------------- Phase 4: uploads ----------------
+
+    private val uploads = ConcurrentHashMap<Long, PendingUpload>()      // temporary message id -> waiting upload
+    private val uploadFiles = ConcurrentHashMap<Int, Long>()            // TDLib file id -> temporary message id
+
+    private fun onFileUpdate(f: TdApi.File) {
+        val temp = uploadFiles[f.id] ?: return
+        val p = uploads[temp] ?: return
+        val total = f.size.toLong().takeIf { it > 0 } ?: f.expectedSize.toLong()
+        if (total > 0) p.onProgress((f.remote.uploadedSize.toLong().toFloat() / total).coerceIn(0f, 1f))
+    }
+
+    /**
+     * Sends a local file to the storage channel as an original-quality document and waits until Telegram has
+     * really accepted it. Cancelling the coroutine cancels the upload (the pending message is deleted).
+     */
+    suspend fun uploadDocument(chatId: Long, path: String, caption: String, onProgress: (Float) -> Unit): TdApi.Message =
+        suspendCancellableCoroutine { cont ->
+            val c = client
+            if (c == null) {
+                cont.resumeWithException(TgUploadException("Telegram is not running.", false))
+                return@suspendCancellableCoroutine
+            }
+            val input = TdApi.InputFileLocal()
+            input.path = path
+            val cap = TdApi.FormattedText()
+            cap.text = caption
+            cap.entities = emptyArray<TdApi.TextEntity>()
+            val doc = TdApi.InputMessageDocument()
+            doc.document = input
+            doc.caption = cap
+            doc.disableContentTypeDetection = true   // keep photos as untouched originals
+            val q = TdApi.SendMessage()
+            q.chatId = chatId
+            q.inputMessageContent = doc
+            c.send(q) { r ->
+                when (r) {
+                    is TdApi.Message -> {
+                        val fid = (r.content as? TdApi.MessageDocument)?.document?.document?.id
+                        uploads[r.id] = PendingUpload(onProgress, cont)
+                        if (fid != null) uploadFiles[fid] = r.id
+                        cont.invokeOnCancellation {
+                            uploads.remove(r.id)
+                            uploadFiles.values.remove(r.id)
+                            val d = TdApi.DeleteMessages()
+                            d.chatId = chatId
+                            d.messageIds = longArrayOf(r.id)
+                            d.revoke = true
+                            client?.send(d) { }
+                        }
+                    }
+                    is TdApi.Error -> if (cont.isActive) {
+                        // Errors with code 400 mean the request itself is wrong (retrying cannot help).
+                        cont.resumeWithException(TgUploadException(r.message ?: "Telegram error", r.code == 400))
+                    }
+                    else -> if (cont.isActive) cont.resumeWithException(TgUploadException("Unexpected Telegram answer.", false))
+                }
+            }
+        }
+
+    /** Reads a message back from Telegram (used to double-check an upload really exists). */
+    suspend fun fetchMessage(chatId: Long, messageId: Long): TdApi.Message? =
+        suspendCancellableCoroutine { cont ->
+            val c = client
+            if (c == null) { cont.resume(null); return@suspendCancellableCoroutine }
+            val q = TdApi.GetMessage()
+            q.chatId = chatId
+            q.messageId = messageId
+            c.send(q) { r -> if (cont.isActive) cont.resume(r as? TdApi.Message) }
+        }
 
     private fun handleAuth(state: TdApi.AuthorizationState) {
         _busy.value = false

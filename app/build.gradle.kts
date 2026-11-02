@@ -16,8 +16,8 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.4.2"
+        versionCode = 9
+        versionName = "0.5.0"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
         buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())
@@ -85,5 +85,6 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    // WorkManager is added back in Phase 4 (backup engine); leaving it out keeps the APK smaller now.
+    // Phase 4: background uploads that survive the app being closed.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

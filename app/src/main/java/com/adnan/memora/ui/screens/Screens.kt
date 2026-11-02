@@ -76,6 +76,8 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit) {
         is com.adnan.memora.telegram.TgAuth.Ready -> stringResource(R.string.tg_connected)
         else -> stringResource(R.string.tg_disconnected)
     }
+    val backup = com.adnan.memora.backup.BackupEngine.get(ctx)
+    val wifiOnly by backup.wifiOnly.collectAsState()
     var showTheme by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
     val night = Prefs.themeMode(ctx)
@@ -97,6 +99,18 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit) {
             color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp).appear(60))
         Column(Modifier.fillMaxWidth().appear(120).glass()) {
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
+            ListItem(
+                modifier = Modifier.clickable { backup.setWifiOnly(!wifiOnly) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = {
+                    Box(Modifier.size(42.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
+                        Icon(Icons.Filled.Wifi, null, tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                },
+                headlineContent = { Text(stringResource(R.string.wifi_only), fontWeight = FontWeight.Medium) },
+                supportingContent = { Text(stringResource(R.string.wifi_only_sub)) },
+                trailingContent = { Switch(checked = wifiOnly, onCheckedChange = { backup.setWifiOnly(it) }) },
+            )
             SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)

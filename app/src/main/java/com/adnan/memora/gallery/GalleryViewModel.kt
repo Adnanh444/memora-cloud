@@ -3,6 +3,7 @@ package com.adnan.memora.gallery
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.adnan.memora.backup.BackupEngine
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -23,9 +24,22 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     val selecting: StateFlow<Boolean> = combine(selectMode, selection) { m, s -> m || s.isNotEmpty() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    // Backup UI state. Fed by the real backup engine from Phase 4; until then it says "not set up".
-    val backupSummary = MutableStateFlow(BackupSummary())
-    val itemBackup = MutableStateFlow<Map<String, ItemBackup>>(emptyMap())
+    // Backup UI state, fed by the backup engine.
+    private val engine = BackupEngine.get(app)
+    val backupSummary: StateFlow<BackupSummary> = engine.summary
+    val itemBackup: StateFlow<Map<String, ItemBackup>> = engine.items
+    val autoFolders: StateFlow<Set<String>> = engine.autoFolders
+    val wifiOnly: StateFlow<Boolean> = engine.wifiOnly
+
+    /** Queues the selected items for backup. Returns false if no Telegram storage is set up yet. */
+    fun backUp(items: List<LocalMedia>): Boolean {
+        if (!engine.isSetUp()) return false
+        engine.enqueue(items)
+        return true
+    }
+    fun retryFailed() = engine.retryFailed()
+    fun toggleAutoFolder(name: String) = engine.toggleAutoFolder(name)
+    fun setWifiOnly(v: Boolean) = engine.setWifiOnly(v)
 
     val folders: StateFlow<List<FolderInfo>> = _all.map { list ->
         list.groupBy { it.bucket }

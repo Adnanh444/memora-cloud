@@ -90,7 +90,7 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
             if (sel) SelectionHeader(vm, items)
             else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() })
         }
-        BackupStrip(summary)
+        BackupStrip(summary, onRetry = { vm.retryFailed() })
         PullToRefreshBox(isRefreshing = loading, onRefresh = { vm.refresh() }, modifier = Modifier.fillMaxSize()) {
             if (items.isEmpty()) {
                 if (loading) SkeletonGrid()
@@ -128,9 +128,9 @@ private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit) {
     }
 }
 
-/** Minimal backup status. Shows real state only: "not set up" until the backup engine exists. */
+/** Backup status. Shows the real state of the upload queue. */
 @Composable
-fun BackupStrip(s: BackupSummary) {
+fun BackupStrip(s: BackupSummary, onRetry: () -> Unit = {}) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).animateContentSize()) {
         Row(
@@ -157,9 +157,24 @@ fun BackupStrip(s: BackupSummary) {
                     }
                 }
                 BackupPhase.IDLE -> {
-                    Icon(Icons.Filled.CloudDone, null, Modifier.size(16.dp), tint = cs.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.backup_all_done), style = MaterialTheme.typography.labelMedium)
+                    if (s.total == 0) {
+                        Icon(Icons.Filled.CloudQueue, null, Modifier.size(16.dp), tint = cs.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.backup_ready), style = MaterialTheme.typography.labelMedium)
+                    } else if (s.failed > 0) {
+                        Icon(Icons.Filled.Error, null, Modifier.size(16.dp), tint = cs.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.backup_some_failed, s.failed), style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.backup_retry), style = MaterialTheme.typography.labelLarge, color = cs.primary,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onRetry).padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    } else {
+                        Icon(Icons.Filled.CloudDone, null, Modifier.size(16.dp), tint = cs.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.backup_all_done), style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 BackupPhase.PAUSED -> {
                     Icon(Icons.Filled.CloudOff, null, Modifier.size(16.dp), tint = cs.onSurfaceVariant)

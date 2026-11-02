@@ -154,4 +154,23 @@
     <string name="tg_cred_change">Use a different API key</string>
     <string name="tg_cred_invalid">The api_id must be a number and the api_hash must be 32 letters and numbers (0-9, a-f). Please check and try again.</string>
     <string name="tg_cred_privacy">Your key is saved encrypted on this phone only. It is never sent to the developer or to GitHub.</string>
+    <!-- Phase 4: backup engine -->
+    <string name="backup_action">Back up</string>
+    <string name="backup_queued">%1$d added to backup</string>
+    <string name="backup_need_telegram">Connect Telegram and create your storage channel first (Settings → Telegram storage).</string>
+    <string name="backup_ready">Backup is ready · select photos and tap the cloud to back up</string>
+    <string name="backup_some_failed">%1$d failed</string>
+    <string name="backup_retry">Retry</string>
+    <string name="auto_backup">Automatic backup</string>
+    <string name="auto_confirm_title">Back up “%1$s” automatically?</string>
+    <string name="auto_confirm_body">All %1$d photos and videos in this folder will be uploaded to your private Telegram channel, and new ones are added automatically. You can turn this off any time.</string>
+    <string name="auto_confirm_yes">Turn on</string>
+    <string name="wifi_only">Back up on Wi-Fi only</string>
+    <string name="wifi_only_sub">Saves your mobile data</string>
+    <string name="backup_err_too_big">This file is larger than 2 GB, which Telegram does not accept.</string>
+    <string name="backup_err_missing">The file is no longer on this phone.</string>
+    <string name="backup_err_verify">Telegram did not confirm the upload.</string>
+    <string name="backup_channel">Backup progress</string>
+    <string name="backup_notif_title">Memora Cloud is backing up</string>
+    <string name="backup_notif_text">Getting ready…</string>
 </resources>
