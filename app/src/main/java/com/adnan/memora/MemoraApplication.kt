@@ -20,6 +20,8 @@ class MemoraApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         AppCompatDelegate.setDefaultNightMode(Prefs.themeMode(this))
+        // Start Telegram only if this build has an API key; restores a previous login automatically.
+        com.adnan.memora.telegram.TelegramClient.get(this).start()
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

@@ -69,8 +69,13 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 }
 
 @Composable
-fun SettingsScreen(onAbout: () -> Unit) {
+fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit) {
     val ctx = LocalContext.current
+    val tgAuth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
+    val tgLabel = when (tgAuth) {
+        is com.adnan.memora.telegram.TgAuth.Ready -> stringResource(R.string.tg_connected)
+        else -> stringResource(R.string.tg_disconnected)
+    }
     var showTheme by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
     val night = Prefs.themeMode(ctx)
@@ -91,6 +96,7 @@ fun SettingsScreen(onAbout: () -> Unit) {
         Text(stringResource(R.string.settings_general), style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp).appear(60))
         Column(Modifier.fillMaxWidth().appear(120).glass()) {
+            SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
             SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)

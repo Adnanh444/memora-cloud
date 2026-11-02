@@ -86,7 +86,10 @@ fun MemoraApp() {
                         onBin = { nav.navigate("bin") },
                     )
                 }
-                composable(Tab.Settings.route) { SettingsScreen(onAbout = { nav.navigate("about") }) }
+                composable(Tab.Settings.route) {
+                    SettingsScreen(onAbout = { nav.navigate("about") }, onTelegram = { nav.navigate("telegram") })
+                }
+                composable("telegram") { TelegramScreen(onBack = { nav.popBackStack() }) }
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
                 composable("viewer") { ViewerScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("search") {

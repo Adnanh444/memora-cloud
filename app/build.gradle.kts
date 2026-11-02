@@ -5,6 +5,10 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Telegram API credentials come from GitHub Secrets at build time. They are NEVER stored in the repository.
+val tgApiId = System.getenv("TELEGRAM_API_ID")?.trim()?.toIntOrNull() ?: 0
+val tgApiHash = System.getenv("TELEGRAM_API_HASH")?.trim()?.filter { it.isLetterOrDigit() } ?: ""
+
 android {
     namespace = "com.adnan.memora"
     compileSdk = 34
@@ -12,10 +16,14 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.3.0"
+        versionCode = 7
+        versionName = "0.4.1"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
+        buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())
+        buildConfigField("String", "TELEGRAM_API_HASH", "\"$tgApiHash\"")
+        // TDLib is large; ship only 64-bit ARM (all phones since ~2016) to keep the APK smaller.
+        ndk { abiFilters += listOf("arm64-v8a") }
     }
     buildTypes {
         release {
@@ -59,6 +67,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    // Community-maintained prebuilt TDLib (Telegram client library). Pinned to an exact version.
+    implementation("io.github.tdlib-android:core:0.1.1")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
