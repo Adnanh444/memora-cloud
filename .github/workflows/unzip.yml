@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          unzip -o 'memora-cloud-*.zip'
+          unzip -o 'memora-cloud-signing.zip'
           rm -rf memora-cloud/.github
           cp -r memora-cloud/. .
           rm -rf memora-cloud memora-cloud-*.zip
