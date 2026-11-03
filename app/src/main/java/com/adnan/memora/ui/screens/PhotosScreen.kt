@@ -59,7 +59,7 @@ private fun hasMediaAccess(c: Context): Boolean = requiredMediaPermissions().any
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () -> Unit, onBackup: () -> Unit) {
+fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () -> Unit, onBackup: () -> Unit, onSettings: () -> Unit) {
     val ctx = LocalContext.current
     var granted by remember { mutableStateOf(hasMediaAccess(ctx)) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -91,7 +91,7 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Crossfade(selecting, label = "header") { sel ->
             if (sel) SelectionHeader(vm, items)
-            else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() })
+            else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings)
         }
         BackupStrip(
             summary, onOpen = onBackup,
@@ -121,22 +121,28 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
 }
 
 @Composable
-private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit) {
+private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit, onSettings: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
             .glass(RoundedCornerShape(30.dp)).clickable(onClick = onSearch)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.Search, null, tint = cs.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Text(stringResource(R.string.search_hint), Modifier.weight(1f), color = cs.onSurfaceVariant,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+            style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Icon(
             Icons.Outlined.CheckCircle, stringResource(R.string.select_mode), tint = cs.onSurfaceVariant,
-            modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onSelect).padding(2.dp),
+            modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onSelect).padding(6.dp),
         )
+        Spacer(Modifier.width(4.dp))
+        Box(
+            Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary)
+                .clickable(onClick = onSettings),
+            Alignment.Center,
+        ) { Text("M", color = cs.onPrimary, fontWeight = FontWeight.Bold) }
     }
 }
 

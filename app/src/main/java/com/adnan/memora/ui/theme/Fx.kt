@@ -23,16 +23,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-/** Neon gradient used for titles, borders and highlights. */
+/** true = clean Google Photos-like look, false = neon glow look. */
+val LocalCleanStyle = staticCompositionLocalOf { true }
+
+/** Accent fill used for icon circles and highlights (solid in the clean style, gradient in the neon style). */
 @Composable
 fun brandBrush(): Brush {
     val c = MaterialTheme.colorScheme
-    return Brush.linearGradient(listOf(c.primary, c.secondary, c.tertiary))
+    return if (LocalCleanStyle.current) Brush.linearGradient(listOf(c.primary, c.primary))
+    else Brush.linearGradient(listOf(c.primary, c.secondary, c.tertiary))
 }
 
 /** Slowly drifting "aurora" glow behind the whole app. Drawn in one layer, cheap on mid-range phones. */
 @Composable
 fun AuroraBackground(modifier: Modifier = Modifier) {
+    if (LocalCleanStyle.current) return
     val t = rememberInfiniteTransition(label = "aurora")
     val a by t.animateFloat(0f, 1f, infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Reverse), label = "a")
     val b by t.animateFloat(1f, 0f, infiniteRepeatable(tween(18000, easing = LinearEasing), RepeatMode.Reverse), label = "b")
@@ -54,6 +59,7 @@ fun AuroraBackground(modifier: Modifier = Modifier) {
 @Composable
 fun Modifier.glass(shape: Shape = RoundedCornerShape(26.dp)): Modifier {
     val c = MaterialTheme.colorScheme
+    if (LocalCleanStyle.current) return this.clip(shape).background(c.surfaceContainer)
     return this
         .clip(shape)
         .background(c.surfaceContainerHigh.copy(alpha = 0.95f))

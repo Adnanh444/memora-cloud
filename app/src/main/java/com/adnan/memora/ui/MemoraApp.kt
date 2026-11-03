@@ -29,6 +29,7 @@ import com.adnan.memora.R
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.ui.screens.*
 import com.adnan.memora.ui.theme.AuroraBackground
+import com.adnan.memora.ui.theme.LocalCleanStyle
 import com.adnan.memora.ui.theme.glass
 
 private enum class Tab(val route: String, val label: Int, val icon: ImageVector) {
@@ -59,6 +60,7 @@ fun MemoraApp() {
                     exit = slideOutVertically(tween(200)) { it } + fadeOut(tween(200)),
                 ) {
                     FloatingNavBar(current) { t ->
+                        gallery.clearSelection()
                         nav.navigate(t.route) {
                             popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true; restoreState = true
@@ -80,15 +82,25 @@ fun MemoraApp() {
                         onOpenViewer = { nav.navigate("viewer") },
                         onSearch = { nav.navigate("search") },
                         onBackup = { nav.navigate("backup") },
+                        onSettings = {
+                            gallery.clearSelection()
+                            nav.navigate(Tab.Settings.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true; restoreState = true
+                            }
+                        },
                     )
                 }
-                composable(Tab.Cloud.route) { PlaceholderScreen(R.string.nav_cloud, Icons.Filled.Cloud) }
+                composable(Tab.Cloud.route) {
+                    CloudScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onOpenStorage = { nav.navigate("telegram") })
+                }
                 composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
                 composable(Tab.Library.route) {
                     LibraryScreen(
                         gallery,
                         onFolder = { name -> gallery.openFolderName = name; nav.navigate("folder") },
                         onBin = { nav.navigate("bin") },
+                        onCloudBin = { nav.navigate("cloudbin") },
                     )
                 }
                 composable(Tab.Settings.route) {
@@ -113,6 +125,7 @@ fun MemoraApp() {
                     FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
                 }
                 composable("bin") { BinScreen(gallery, onBack = { nav.popBackStack() }) }
+                composable("cloudbin") { CloudBinScreen(gallery, onBack = { nav.popBackStack() }) }
             }
         }
     }
@@ -120,6 +133,20 @@ fun MemoraApp() {
 
 @Composable
 private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
+    if (LocalCleanStyle.current) {
+        // Clean style: standard bottom navigation bar with labels (like Google Photos)
+        NavigationBar {
+            Tab.entries.forEach { t ->
+                NavigationBarItem(
+                    selected = current == t.route,
+                    onClick = { onSelect(t) },
+                    icon = { Icon(t.icon, null) },
+                    label = { Text(stringResource(t.label), maxLines = 1) },
+                )
+            }
+        }
+        return
+    }
     val shape = RoundedCornerShape(32.dp)
     Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
         Row(

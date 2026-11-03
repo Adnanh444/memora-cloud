@@ -9,7 +9,10 @@ import coil.decode.VideoFrameDecoder
 
 object Prefs {
     private fun sp(c: Context) = c.getSharedPreferences("memora", Context.MODE_PRIVATE)
-    fun themeMode(c: Context): Int = sp(c).getInt("night_mode", AppCompatDelegate.MODE_NIGHT_YES)
+    fun themeMode(c: Context): Int = sp(c).getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+    /** true = clean Google Photos-like look (default); false = neon glow look. */
+    fun cleanStyle(c: Context): Boolean = sp(c).getBoolean("clean_style", true)
+    fun setCleanStyle(c: Context, clean: Boolean) { sp(c).edit().putBoolean("clean_style", clean).apply() }
     fun setThemeMode(c: Context, mode: Int) {
         sp(c).edit().putInt("night_mode", mode).apply()
         AppCompatDelegate.setDefaultNightMode(mode)
@@ -27,7 +30,10 @@ class MemoraApplication : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .components { add(VideoFrameDecoder.Factory()) }
+        .components {
+            add(VideoFrameDecoder.Factory())
+            add(com.adnan.memora.cloud.CloudFetcher.Factory(this@MemoraApplication))
+        }
         .crossfade(true)
         .build()
 }

@@ -2,6 +2,8 @@ package com.adnan.memora.backup
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** One row per photo/video that Memora has been asked to back up. This is the persistent backup ledger. */
@@ -23,6 +25,7 @@ data class BackupEntry(
     val attempts: Int = 0,
     val error: String? = null,
     val duplicateOf: String? = null,
+    @ColumnInfo(defaultValue = "0") val trashedAt: Long = 0,
 ) {
     companion object {
         const val ST_QUEUED = "QUEUED"
@@ -30,6 +33,8 @@ data class BackupEntry(
         const val ST_VERIFIED = "VERIFIED"
         const val ST_DUPLICATE = "DUPLICATE"
         const val ST_FAILED = "FAILED"
+        const val ST_TRASHED = "TRASHED"   // moved to the cloud bin (still in Telegram for 30 days)
+        const val ST_DELETED = "DELETED"   // removed from the cloud on purpose; never re-uploaded automatically
     }
 }
 
@@ -72,6 +77,30 @@ interface BackupDao {
     @Query("UPDATE backup_entries SET state = 'QUEUED', attempts = 0, error = NULL WHERE state = 'FAILED' AND uri IN (:uris)")
     suspend fun requeue(uris: List<String>)
 
+    @Query("SELECT * FROM backup_entries WHERE uri IN (:uris)")
+    suspend fun getMany(uris: List<String>): List<BackupEntry>
+
+    @Query("SELECT * FROM backup_entries WHERE state IN ('QUEUED','FAILED')")
+    suspend fun queuedOrFailed(): List<BackupEntry>
+
+    @Query("DELETE FROM backup_entries WHERE uri IN (:uris) AND state IN ('QUEUED','FAILED')")
+    suspend fun deleteQueued(uris: List<String>)
+
+    @Query("UPDATE backup_entries SET state = 'QUEUED', attempts = 0, error = NULL WHERE state = 'DELETED' AND uri IN (:uris)")
+    suspend fun requeueDeleted(uris: List<String>)
+
+    @Query("UPDATE backup_entries SET state = 'TRASHED', trashedAt = :now WHERE chatId = :chatId AND messageId = :messageId AND state IN ('VERIFIED','DUPLICATE')")
+    suspend fun trashByMessage(chatId: Long, messageId: Long, now: Long)
+
+    @Query("UPDATE backup_entries SET state = 'VERIFIED', trashedAt = 0 WHERE chatId = :chatId AND messageId = :messageId AND state = 'TRASHED'")
+    suspend fun restoreByMessage(chatId: Long, messageId: Long)
+
+    @Query("UPDATE backup_entries SET state = 'DELETED' WHERE chatId = :chatId AND messageId = :messageId AND state = 'TRASHED'")
+    suspend fun tombstoneByMessage(chatId: Long, messageId: Long)
+
+    @Query("SELECT * FROM backup_entries WHERE state = 'TRASHED' AND trashedAt < :before")
+    suspend fun expiredTrash(before: Long): List<BackupEntry>
+
     @Query("SELECT * FROM hash_cache WHERE uri = :uri")
     suspend fun cachedHash(uri: String): HashCacheEntry?
 
@@ -79,14 +108,21 @@ interface BackupDao {
     suspend fun putHash(h: HashCacheEntry)
 }
 
-@Database(entities = [BackupEntry::class, HashCacheEntry::class], version = 1, exportSchema = false)
+@Database(entities = [BackupEntry::class, HashCacheEntry::class], version = 2, exportSchema = false)
 abstract class BackupDb : RoomDatabase() {
     abstract fun dao(): BackupDao
 
     companion object {
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE backup_entries ADD COLUMN trashedAt INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile private var inst: BackupDb? = null
         fun get(ctx: Context): BackupDb = inst ?: synchronized(this) {
             inst ?: Room.databaseBuilder(ctx.applicationContext, BackupDb::class.java, "memora_backup.db")
+                .addMigrations(MIGRATION_1_2)
                 .build().also { inst = it }
         }
     }

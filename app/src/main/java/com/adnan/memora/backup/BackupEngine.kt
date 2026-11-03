@@ -3,6 +3,7 @@ package com.adnan.memora.backup
 import android.content.Context
 import android.net.Uri
 import com.adnan.memora.R
+import com.adnan.memora.cloud.CloudUri
 import com.adnan.memora.data.BackupState
 import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.BackupSummary
@@ -11,14 +12,15 @@ import com.adnan.memora.gallery.LocalMedia
 import com.adnan.memora.gallery.MediaRepository
 import com.adnan.memora.telegram.StorageStatus
 import com.adnan.memora.telegram.TelegramClient
+import com.adnan.memora.telegram.ThumbInfo
 import com.adnan.memora.telegram.UploadResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -31,13 +33,22 @@ fun LocalMedia.toEntry() = BackupEntry(
     uri = key, name = name, mime = mime, size = size, dateTaken = dateTaken, isVideo = isVideo,
 )
 
+/** A backed-up file as shown in the Cloud tab. The "uri" points at Telegram, not at the phone. */
+fun BackupEntry.toCloudMedia() = LocalMedia(
+    uri = CloudUri.thumb(chatId, messageId), name = name, mime = mime, size = size,
+    dateTaken = dateTaken, dateModified = verifiedAt, width = 0, height = 0, durationMs = 0L,
+    isVideo = isVideo, bucket = "Cloud",
+)
+
 /**
- * The backup engine: queue -> hash while copying -> duplicate check -> upload to Telegram -> verify.
- * Original files on the phone are NEVER deleted or modified by backup.
+ * Queue -> hash while copying -> duplicate check -> upload to Telegram -> verify.
+ * RULE: a file is only ever uploaded if its type (photos/videos) AND its folder are turned ON in Backup settings.
+ * Original files on the phone are never deleted or modified by backup.
  */
 object BackupEngine {
     private const val MAX_AUTO_ATTEMPTS = 5
-    private const val MAX_FILE_BYTES = 2_000_000_000L // Telegram's limit for normal accounts
+    private const val MAX_FILE_BYTES = 2_000_000_000L
+    private const val TRASH_DAYS = 30L
 
     private lateinit var appCtx: Context
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -50,6 +61,10 @@ object BackupEngine {
     val summary: StateFlow<BackupSummary> = _summary
     private val _items = MutableStateFlow<Map<String, ItemBackup>>(emptyMap())
     val items: StateFlow<Map<String, ItemBackup>> = _items
+    private val _cloud = MutableStateFlow<List<BackupEntry>>(emptyList())
+    val cloud: StateFlow<List<BackupEntry>> = _cloud
+    private val _cloudTrash = MutableStateFlow<List<BackupEntry>>(emptyList())
+    val cloudTrash: StateFlow<List<BackupEntry>> = _cloudTrash
 
     fun init(ctx: Context) {
         if (::appCtx.isInitialized) return
@@ -65,6 +80,14 @@ object BackupEngine {
                 _items.value = map
             }
         }
+        scope.launch {
+            dao.observeAll().collect { entries ->
+                _cloud.value = entries.filter { it.state == BackupEntry.ST_VERIFIED && it.messageId != 0L }
+                    .distinctBy { it.chatId to it.messageId }.sortedByDescending { it.dateTaken }
+                _cloudTrash.value = entries.filter { it.state == BackupEntry.ST_TRASHED }
+                    .distinctBy { it.chatId to it.messageId }.sortedByDescending { it.trashedAt }
+            }
+        }
     }
 
     private fun compute(
@@ -73,9 +96,12 @@ object BackupEngine {
         val map = HashMap<String, ItemBackup>(entries.size * 2)
         var done = 0
         var waiting = 0
+        var total = 0
         var currentName: String? = null
         var currentProgress = 0f
         for (e in entries) {
+            if (e.state == BackupEntry.ST_TRASHED || e.state == BackupEntry.ST_DELETED) continue
+            total++
             val isLive = lv != null && lv.first == e.uri
             val item = when (e.state) {
                 BackupEntry.ST_VERIFIED -> { done++; ItemBackup(BackupState.VERIFIED) }
@@ -89,7 +115,7 @@ object BackupEngine {
             }
             map[e.uri] = item
         }
-        val active = (cfg?.enabled == true) || entries.isNotEmpty()
+        val active = (cfg?.enabled == true) || total > 0
         val ready = st is StorageStatus.Verified
         val phase = when {
             !active || !ready -> BackupPhase.NOT_SET_UP
@@ -98,10 +124,15 @@ object BackupEngine {
             waiting > 0 -> BackupPhase.PAUSED
             else -> BackupPhase.IDLE
         }
-        return BackupSummary(phase, done, entries.size, currentName, currentProgress, cfg?.paused == true, waiting) to map
+        return BackupSummary(phase, done, total, currentName, currentProgress, cfg?.paused == true, waiting) to map
     }
 
-    /** Stops the upload that is running RIGHT NOW (it goes back to the queue) and keeps backup paused. */
+    /** THE RULE. A file may upload only if its type is ON and its folder is ON. */
+    fun isEligible(cfg: BackupConfig, isVideo: Boolean, bucket: String?): Boolean =
+        bucket != null && bucket != "Memora" &&
+            (if (isVideo) cfg.videos else cfg.photos) && bucket in cfg.folders
+
+    /** Stops the upload running RIGHT NOW (it goes back to the queue) and keeps backup paused. */
     fun pause(ctx: Context) {
         val cfg = BackupSettings.load(ctx).copy(paused = true)
         BackupSettings.save(ctx, cfg)
@@ -109,7 +140,6 @@ object BackupEngine {
         uploadJob?.cancel()
     }
 
-    /** Resumes backup from where the queue left off. */
     fun resume(ctx: Context) {
         val cfg = BackupSettings.load(ctx).copy(paused = false)
         BackupSettings.save(ctx, cfg)
@@ -118,35 +148,59 @@ object BackupEngine {
     }
 
     fun updateConfig(ctx: Context, cfg: BackupConfig) {
+        val old = configFlow.value ?: BackupSettings.load(ctx)
         BackupSettings.save(ctx, cfg)
         configFlow.value = cfg
         BackupScheduler.sync(ctx)
-        if (cfg.enabled && !cfg.paused) BackupScheduler.runNow(ctx)
+        val tightened = (old.photos && !cfg.photos) || (old.videos && !cfg.videos) ||
+            (old.folders - cfg.folders).isNotEmpty()
+        if (tightened) {
+            // something was turned OFF: stop the running upload and drop everything that is no longer allowed
+            uploadJob?.cancel()
+            scope.launch {
+                purgeIneligible(ctx, cfg)
+                if (!cfg.paused) BackupScheduler.runNow(ctx, append = true)
+            }
+        } else if (cfg.enabled && !cfg.paused) {
+            BackupScheduler.runNow(ctx)
+        }
     }
 
-    /** Finds new photos/videos in the chosen folders and adds them to the queue. */
+    /** Removes queued/failed items whose type or folder is now OFF, so they can never upload. */
+    suspend fun purgeIneligible(ctx: Context, cfg: BackupConfig = BackupSettings.load(ctx)) = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(ctx).dao()
+        val pending = dao.queuedOrFailed()
+        if (pending.isEmpty()) return@withContext
+        val media = MediaRepository(ctx).loadAll().associateBy { it.key }
+        val bad = pending.filter { !isEligible(cfg, it.isVideo, media[it.uri]?.bucket) }.map { it.uri }
+        bad.chunked(500).forEach { dao.deleteQueued(it) }
+    }
+
+    /** Finds new photos/videos in the allowed folders and adds them to the queue. */
     suspend fun scanAndEnqueue(ctx: Context): Int = withContext(Dispatchers.IO) {
         val cfg = BackupSettings.load(ctx)
         if (!cfg.enabled) return@withContext 0
         val dao = BackupDb.get(ctx).dao()
         val media = MediaRepository(ctx).loadAll()
         val existing = dao.allKeys().toHashSet()
-        val fresh = media.filter { m ->
-            m.key !in existing && (if (m.isVideo) cfg.videos else cfg.photos) && m.bucket in cfg.folders
-        }.map { it.toEntry() }
+        val fresh = media.filter { m -> m.key !in existing && isEligible(cfg, m.isVideo, m.bucket) }.map { it.toEntry() }
         if (fresh.isNotEmpty()) dao.insertAll(fresh)
         fresh.size
     }
 
-    /** User picked specific items to back up now (ignores folder settings). */
-    suspend fun enqueueManual(ctx: Context, items: List<LocalMedia>): Int = withContext(Dispatchers.IO) {
+    /** Manual backup. Items whose type or folder is OFF are skipped. Returns (added, skipped). */
+    suspend fun enqueueManual(ctx: Context, items: List<LocalMedia>): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        val cfg = BackupSettings.load(ctx)
+        val ok = items.filter { isEligible(cfg, it.isVideo, it.bucket) }
+        val skipped = items.size - ok.size
+        if (ok.isEmpty()) return@withContext Pair(0, skipped)
         val dao = BackupDb.get(ctx).dao()
         val existing = dao.allKeys().toHashSet()
-        val fresh = items.filter { it.key !in existing }.map { it.toEntry() }
+        val fresh = ok.filter { it.key !in existing }.map { it.toEntry() }
         if (fresh.isNotEmpty()) dao.insertAll(fresh)
-        items.map { it.key }.chunked(500).forEach { dao.requeue(it) }
+        ok.map { it.key }.chunked(500).forEach { dao.requeue(it); dao.requeueDeleted(it) }
         BackupScheduler.runNow(ctx)
-        fresh.size
+        Pair(ok.size, skipped)
     }
 
     suspend fun retryFailed(ctx: Context) = withContext(Dispatchers.IO) {
@@ -154,7 +208,54 @@ object BackupEngine {
         BackupScheduler.runNow(ctx)
     }
 
-    /** Processes the queue one item at a time. Returns false if Telegram storage was not usable. */
+    // ------------------------------------------------------------------ cloud library / cloud bin
+
+    /** "Delete from cloud" for items chosen in the Cloud tab: moves them to the cloud bin (30 days). */
+    suspend fun trashCloudMessages(msgs: List<Pair<Long, Long>>) = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(appCtx).dao()
+        val now = System.currentTimeMillis()
+        msgs.distinct().forEach { dao.trashByMessage(it.first, it.second, now) }
+    }
+
+    /** "Delete from cloud" for photos chosen on the phone. */
+    suspend fun trashCloudForLocal(ctx: Context, uris: List<String>) = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(ctx).dao()
+        val now = System.currentTimeMillis()
+        uris.chunked(500).flatMap { dao.getMany(it) }
+            .filter { it.messageId != 0L && (it.state == BackupEntry.ST_VERIFIED || it.state == BackupEntry.ST_DUPLICATE) }
+            .map { it.chatId to it.messageId }.distinct()
+            .forEach { dao.trashByMessage(it.first, it.second, now) }
+    }
+
+    suspend fun restoreCloud(msgs: List<Pair<Long, Long>>) = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(appCtx).dao()
+        msgs.distinct().forEach { dao.restoreByMessage(it.first, it.second) }
+    }
+
+    /** Permanently deletes the messages from Telegram. Returns true if Telegram confirmed. */
+    suspend fun deleteCloudForever(ctx: Context, msgs: List<Pair<Long, Long>>): Boolean = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(ctx).dao()
+        val tg = TelegramClient.get(ctx)
+        if (!tg.awaitUsable(30_000)) return@withContext false
+        var all = true
+        msgs.distinct().groupBy { it.first }.forEach { (chat, list) ->
+            val ids = list.map { it.second }
+            if (tg.deleteMessages(chat, ids)) ids.forEach { dao.tombstoneByMessage(chat, it) } else all = false
+        }
+        all
+    }
+
+    private suspend fun purgeExpiredCloudTrash(dao: BackupDao, tg: TelegramClient) {
+        val expired = dao.expiredTrash(System.currentTimeMillis() - TRASH_DAYS * 24 * 3600 * 1000)
+        expired.groupBy { it.chatId }.forEach { (chat, list) ->
+            val ids = list.map { it.messageId }.distinct()
+            if (tg.deleteMessages(chat, ids)) ids.forEach { dao.tombstoneByMessage(chat, it) }
+        }
+    }
+
+    // ------------------------------------------------------------------ uploads
+
+    /** Processes the queue one item at a time. Returns false if the cloud storage was not usable. */
     suspend fun runUploads(ctx: Context): Boolean {
         val dao = BackupDb.get(ctx).dao()
         val tg = TelegramClient.get(ctx)
@@ -162,12 +263,18 @@ object BackupEngine {
         val chatId = tg.storage.value?.chatId ?: return false
         running.value = true
         try {
+            purgeExpiredCloudTrash(dao, tg)
             dao.resetUploading()
             val todo = dao.pendingUris(MAX_AUTO_ATTEMPTS)
+            val media = MediaRepository(ctx).loadAll().associateBy { it.key }
             coroutineScope {
                 val job = launch {
                     for (uri in todo) {
-                        if (BackupSettings.load(ctx).paused) break
+                        val cfg = BackupSettings.load(ctx)
+                        if (cfg.paused) break
+                        val e = dao.get(uri) ?: continue
+                        // the rule is checked again right before every single upload
+                        if (!isEligible(cfg, e.isVideo, media[uri]?.bucket)) { dao.delete(uri); continue }
                         processOne(ctx, dao, tg, chatId, uri)
                     }
                 }
@@ -189,9 +296,7 @@ object BackupEngine {
         return if (cleaned.isBlank()) "file" else cleaned
     }
 
-    private suspend fun processOne(
-        ctx: Context, dao: BackupDao, tg: com.adnan.memora.telegram.TelegramClient, chatId: Long, uri: String,
-    ) {
+    private suspend fun processOne(ctx: Context, dao: BackupDao, tg: TelegramClient, chatId: Long, uri: String) {
         var e = dao.get(uri) ?: return
         if (e.state == BackupEntry.ST_VERIFIED || e.state == BackupEntry.ST_DUPLICATE) return
         if (e.size > MAX_FILE_BYTES) {
@@ -207,17 +312,16 @@ object BackupEngine {
         dao.update(e)
         live.value = e.uri to 0f
         val temp = File(dir, safeName(e.name))
+        val thumbFile = File(dir, "preview_" + System.nanoTime() + ".jpg")
         try {
-            // 1) copy to a temporary file while computing SHA-256 (streaming)
             val sha = try {
                 Hashing.copyAndHash(ctx, Uri.parse(e.uri), temp)
             } catch (_: FileNotFoundException) {
-                dao.delete(e.uri) // file no longer exists on the phone
+                dao.delete(e.uri)
                 return
             }
             val actualSize = temp.length()
 
-            // 2) duplicate check against everything already backed up
             val twin = dao.findVerifiedByHash(sha, e.uri)
             if (twin != null) {
                 val now = System.currentTimeMillis()
@@ -230,15 +334,16 @@ object BackupEngine {
                 return
             }
 
-            // 3) upload as a document (original quality)
+            val dims = Thumbs.make(ctx, Uri.parse(e.uri), e.isVideo, thumbFile)
+            val thumb = if (dims != null) ThumbInfo(thumbFile.absolutePath, dims.first, dims.second) else null
+
             var lastReported = 0f
-            val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha") { p ->
+            val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha", thumb) { p ->
                 if (p - lastReported >= 0.05f || p >= 1f) { lastReported = p; live.value = e.uri to p }
             }
             val now = System.currentTimeMillis()
             when (res) {
                 is UploadResult.Success -> {
-                    // 4) verify with Telegram before calling it backed up
                     if (tg.verifyMessage(chatId, res.messageId, actualSize)) {
                         dao.update(
                             e.copy(
@@ -259,6 +364,7 @@ object BackupEngine {
             dao.update(e.copy(state = BackupEntry.ST_FAILED, error = (t.message ?: "error").take(120)))
         } finally {
             temp.delete()
+            thumbFile.delete()
         }
     }
 }

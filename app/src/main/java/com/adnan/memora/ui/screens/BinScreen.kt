@@ -105,7 +105,7 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun BinCell(t: TrashedMedia, selected: Boolean, onClick: () -> Unit) {
+internal fun BinCell(t: TrashedMedia, selected: Boolean, onClick: () -> Unit) {
     val onClickL by rememberUpdatedState(onClick)
     val days = if (t.expiresAt > 0) ceil((t.expiresAt - System.currentTimeMillis()) / 86_400_000.0).toInt().coerceAtLeast(0) else 30
     Box(Modifier.aspectRatio(1f).pointerInput(Unit) { detectTapGestures(onTap = { onClickL() }) }) {

@@ -1,4 +1,10 @@
 # Changelog
+## 0.7.0 — Phase 6: Cloud + Google Photos style
+- Cloud tab: browse backed-up photos/videos with previews from the cloud; originals stay off the phone unless you tap Download.
+- In-app cloud photo zoom and video playback from a temporary private cache (auto-removed).
+- Download saves originals to Pictures/Memora or Movies/Memora; delete from cloud uses a 30-day cloud bin.
+- Backup rule fix: photo/video type and folder switches now block manual, automatic, background, queued and retried uploads.
+- Clean (Google Photos-like) style is the default; neon style is optional. Cloud connection details are hidden behind the screen lock.
 ## 0.6.0 — Phase 5: Duplicates + Pause + better visibility
 - Pause/Resume button on the Photos backup strip, Backup screen and notification; Pause stops the current upload immediately.
 - Duplicate scanner (SHA-256, size pre-filter, cached hashes); you choose what to delete; at least one copy is always kept.

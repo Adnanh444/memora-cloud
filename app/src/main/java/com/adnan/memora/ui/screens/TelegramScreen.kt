@@ -1,6 +1,11 @@
 package com.adnan.memora.ui.screens
 
+import android.app.Activity
+import android.app.KeyguardManager
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -44,6 +49,16 @@ fun TelegramScreen(onBack: () -> Unit) {
     var confirmCreate by remember { mutableStateOf(false) }
     var confirmForget by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
+    // Account and channel details stay hidden until the user confirms with the phone's screen lock.
+    var revealed by remember { mutableStateOf(false) }
+    val revealLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        if (r.resultCode == Activity.RESULT_OK) revealed = true
+    }
+    fun askReveal() {
+        val km = ctx.getSystemService(KeyguardManager::class.java)
+        val i = km?.createConfirmDeviceCredentialIntent(ctx.getString(R.string.tg_show_details), ctx.getString(R.string.tg_reveal_desc))
+        if (i != null) revealLauncher.launch(i) else Toast.makeText(ctx, R.string.tg_need_lock, Toast.LENGTH_LONG).show()
+    }
 
     LaunchedEffect(Unit) { tg.clearError(); tg.start() }
 
@@ -94,9 +109,17 @@ fun TelegramScreen(onBack: () -> Unit) {
                 is TgAuth.NeedPassword -> PasswordStep(a.hint, busy) { tg.submitPassword(it) }
                 is TgAuth.Ready -> {
                     Column(Modifier.fillMaxWidth().appear().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.tg_account), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(me?.name?.ifBlank { null } ?: "…", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        if (!me?.phone.isNullOrBlank()) Text("+" + me?.phone?.trimStart('+'), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        StatusLine(Icons.Filled.CheckCircle, stringResource(R.string.tg_connected_msg), MaterialTheme.colorScheme.primary)
+                        if (revealed) {
+                            Text(stringResource(R.string.tg_account), style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                            Text(me?.name?.ifBlank { null } ?: "…", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            if (!me?.phone.isNullOrBlank()) Text("+" + me?.phone?.trimStart('+'), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            OutlinedButton(onClick = { askReveal() }, modifier = Modifier.padding(top = 8.dp)) {
+                                Text(stringResource(R.string.tg_show_details))
+                            }
+                        }
                     }
                     val st = storage
                     if (st == null) {
@@ -110,9 +133,11 @@ fun TelegramScreen(onBack: () -> Unit) {
                     } else {
                         Column(Modifier.fillMaxWidth().appear(80).glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(stringResource(R.string.tg_storage), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Text(st.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(R.string.tg_id_label) + ": " + st.storageId.take(8), style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (revealed) {
+                                Text(st.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.tg_id_label) + ": " + st.storageId.take(8), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             when (val s = status) {
                                 is StorageStatus.Verified -> StatusLine(Icons.Filled.CheckCircle, stringResource(R.string.tg_status_ok), MaterialTheme.colorScheme.primary)
                                 is StorageStatus.Checking -> StatusLine(Icons.Filled.HourglassTop, stringResource(R.string.tg_status_checking), MaterialTheme.colorScheme.onSurfaceVariant)

@@ -42,6 +42,7 @@ import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.gallery.ItemBackup
 import com.adnan.memora.gallery.LocalMedia
+import com.adnan.memora.ui.theme.LocalCleanStyle
 import com.adnan.memora.ui.theme.brandBrush
 import com.adnan.memora.ui.theme.glass
 import kotlinx.coroutines.delay
@@ -88,7 +89,10 @@ private fun buildEntries(list: List<LocalMedia>, todayLabel: String, yesterdayLa
 
 /** Date-grouped photo grid with fast-scroll handle, badges and selection. */
 @Composable
-fun MediaGrid(list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun MediaGrid(
+    list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Unit, modifier: Modifier = Modifier,
+    showBadges: Boolean = true,
+) {
     val selection by vm.selection.collectAsState()
     val selecting by vm.selecting.collectAsState()
     val summary by vm.backupSummary.collectAsState()
@@ -97,15 +101,16 @@ fun MediaGrid(list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Uni
     val yesterdayL = stringResource(R.string.yesterday)
     val built = remember(list, todayL, yesterdayL) { buildEntries(list, todayL, yesterdayL) }
     val state = rememberLazyGridState()
-    val showBadges = summary.phase != BackupPhase.NOT_SET_UP
+    val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
+    val gap = if (LocalCleanStyle.current) 2.dp else 3.dp
 
     Box(modifier) {
         LazyVerticalGrid(
             state = state,
             columns = GridCells.Adaptive(104.dp),
             contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap),
             modifier = Modifier.fillMaxSize(),
         ) {
             items(
@@ -122,7 +127,7 @@ fun MediaGrid(list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Uni
                         m = e.media,
                         selected = e.media.key in selection,
                         selecting = selecting,
-                        badge = if (showBadges) (itemBackup[e.media.key] ?: ItemBackup(BackupState.NOT_BACKED_UP)) else null,
+                        badge = if (badgesOn) (itemBackup[e.media.key] ?: ItemBackup(BackupState.NOT_BACKED_UP)) else null,
                         onClick = {
                             if (selecting) vm.toggle(e.media.key)
                             else onOpen(list.indexOfFirst { it.key == e.media.key })
@@ -221,7 +226,8 @@ private fun MediaCell(
     )
     val onClickL by rememberUpdatedState(onClick)
     val onLongL by rememberUpdatedState(onLongClick)
-    val shape = RoundedCornerShape(if (selected) 14.dp else 8.dp)
+    val clean = LocalCleanStyle.current
+    val shape = RoundedCornerShape(if (selected) 14.dp else if (clean) 2.dp else 8.dp)
     val brand = brandBrush()
 
     Box(
@@ -316,9 +322,24 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
     val scope = rememberCoroutineScope()
     val deleteAction = rememberDeleteAction(onDone = { vm.clearSelection(); vm.refresh() })
     BackHandler { vm.clearSelection() }
+    val itemBackup by vm.itemBackup.collectAsState()
+    val hasCloud = selection.any { itemBackup[it]?.state == BackupState.VERIFIED }
     if (confirm) DeleteSheet(
         count = selection.size,
+        hasCloud = hasCloud,
         onDeletePhone = { deleteAction(vm.selectedMedia()) },
+        onDeleteCloud = {
+            val keys = vm.selectedMedia().map { it.key }
+            scope.launch { BackupEngine.trashCloudForLocal(ctx, keys) }
+            vm.clearSelection()
+        },
+        onDeleteBoth = {
+            val picked = vm.selectedMedia()
+            scope.launch {
+                BackupEngine.trashCloudForLocal(ctx, picked.map { it.key })
+                deleteAction(picked)
+            }
+        },
         onDismiss = { confirm = false },
     )
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -337,8 +358,10 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             } else {
                 val picked = vm.selectedMedia()
                 scope.launch {
-                    val n = BackupEngine.enqueueManual(ctx, picked)
-                    Toast.makeText(ctx, ctx.getString(R.string.bk_queued, n), Toast.LENGTH_SHORT).show()
+                    val (added, skipped) = BackupEngine.enqueueManual(ctx, picked)
+                    val msg = if (skipped > 0) ctx.getString(R.string.bk_queued_skipped, added, skipped)
+                    else ctx.getString(R.string.bk_queued, added)
+                    Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
                 }
                 vm.clearSelection()
             }

@@ -152,6 +152,8 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                 }
             }
 
+            Text(stringResource(R.string.bk_rule_note), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(horizontal = 8.dp))
             Text(stringResource(R.string.bk_battery_note), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp))
         }

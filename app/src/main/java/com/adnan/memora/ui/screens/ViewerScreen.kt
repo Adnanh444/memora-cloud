@@ -3,6 +3,9 @@ package com.adnan.memora.ui.screens
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.widget.MediaController
+import android.widget.VideoView
+import androidx.compose.ui.viewinterop.AndroidView
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -54,6 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.exifinterface.media.ExifInterface
 import coil.compose.AsyncImage
 import com.adnan.memora.R
+import com.adnan.memora.backup.BackupEngine
+import com.adnan.memora.cloud.CloudDownloader
+import com.adnan.memora.cloud.CloudUri
+import com.adnan.memora.telegram.TelegramClient
 import com.adnan.memora.data.BackupState
 import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.GalleryViewModel
@@ -80,6 +87,9 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     var zoomed by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var playingCloud by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    DisposableEffect(Unit) { onDispose { TelegramClient.get(ctx).releaseFullFiles() } }
     var heightPx by remember { mutableFloatStateOf(0f) }
     val deleteAction = rememberDeleteAction(onDone = { vm.refresh() })
     val shift by animateFloatAsState(if (detailsOpen) 1f else 0f, tween(380, easing = FastOutSlowInEasing), label = "shift")
@@ -87,6 +97,7 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     LaunchedEffect(pager.currentPage) { zoomed = false }
 
     val current = items[pager.currentPage.coerceIn(0, items.lastIndex)]
+    val isCloud = CloudUri.isCloud(current.uri)
     val onTap: () -> Unit = { if (detailsOpen) detailsOpen = false else chrome = !chrome }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -126,13 +137,17 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     ) {
                         AsyncImage(model = m.uri, contentDescription = m.name, contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize())
-                        FilledIconButton(onClick = { playVideo(ctx, m.uri, m.mime) }, modifier = Modifier.size(72.dp)) {
+                        FilledIconButton(
+                            onClick = { if (CloudUri.isCloud(m.uri)) playingCloud = true else playVideo(ctx, m.uri, m.mime) },
+                            modifier = Modifier.size(72.dp),
+                        ) {
                             Icon(Icons.Filled.PlayArrow, stringResource(R.string.play_video), Modifier.size(40.dp))
                         }
                     }
                 } else {
                     ZoomableImage(
-                        model = m.uri, contentDescription = m.name,
+                        model = if (CloudUri.isCloud(m.uri)) CloudUri.full(m.uri) else m.uri,
+                        showSpinner = CloudUri.isCloud(m.uri), contentDescription = m.name,
                         onZoomChanged = { zoomed = it }, onTap = onTap,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -157,8 +172,8 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                 }
                 Spacer(Modifier.weight(1f))
-                if (summary.phase != BackupPhase.NOT_SET_UP) {
-                    val ok = backup[current.key]?.state == BackupState.VERIFIED
+                if (isCloud || summary.phase != BackupPhase.NOT_SET_UP) {
+                    val ok = isCloud || backup[current.key]?.state == BackupState.VERIFIED
                     Icon(if (ok) Icons.Filled.CloudDone else Icons.Filled.CloudOff, null, tint = Color.White,
                         modifier = Modifier.padding(end = 16.dp))
                 }
@@ -177,7 +192,11 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     .glass(RoundedCornerShape(32.dp)).padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                BarAction(Icons.Filled.Share, R.string.share) { shareMedia(ctx, listOf(current)) }
+                if (isCloud) BarAction(Icons.Filled.Download, R.string.cl_download) {
+                    CloudDownloader.start(ctx, listOf(current))
+                    android.widget.Toast.makeText(ctx, R.string.cl_downloading, android.widget.Toast.LENGTH_SHORT).show()
+                }
+                else BarAction(Icons.Filled.Share, R.string.share) { shareMedia(ctx, listOf(current)) }
                 BarAction(Icons.Filled.Info, R.string.details) { detailsOpen = true }
                 BarAction(Icons.Filled.Delete, R.string.delete) { confirmDelete = true }
             }
@@ -191,17 +210,38 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             exit = slideOutVertically(tween(300)) { it } + fadeOut(tween(200)),
         ) {
             DetailsPanel(
-                m = current, backup = backup[current.key], backupOn = summary.phase != BackupPhase.NOT_SET_UP,
+                m = current, backup = backup[current.key], backupOn = summary.phase != BackupPhase.NOT_SET_UP, isCloud = isCloud,
                 onClose = { detailsOpen = false },
                 modifier = Modifier.fillMaxWidth().fillMaxHeight(0.46f),
             )
         }
 
-        if (confirmDelete) DeleteSheet(
-            count = 1,
-            onDeletePhone = { deleteAction(listOf(current)) },
-            onDismiss = { confirmDelete = false },
-        )
+        if (confirmDelete) {
+            if (isCloud) {
+                val ids = CloudUri.ids(current.uri)
+                CloudDeleteSheet(
+                    count = 1,
+                    onConfirm = { if (ids != null) scope.launch { BackupEngine.trashCloudMessages(listOf(ids)) } },
+                    onDismiss = { confirmDelete = false },
+                )
+            } else {
+                DeleteSheet(
+                    count = 1,
+                    hasCloud = backup[current.key]?.state == BackupState.VERIFIED,
+                    onDeletePhone = { deleteAction(listOf(current)) },
+                    onDeleteCloud = { scope.launch { BackupEngine.trashCloudForLocal(ctx, listOf(current.key)) } },
+                    onDeleteBoth = {
+                        scope.launch {
+                            BackupEngine.trashCloudForLocal(ctx, listOf(current.key))
+                            deleteAction(listOf(current))
+                        }
+                    },
+                    onDismiss = { confirmDelete = false },
+                )
+            }
+        }
+
+        if (playingCloud && isCloud) CloudVideoPlayer(current) { playingCloud = false }
     }
 }
 
@@ -226,7 +266,9 @@ private fun BarAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
 private fun ZoomableImage(
     model: Any?, contentDescription: String?,
     onZoomChanged: (Boolean) -> Unit, onTap: () -> Unit, modifier: Modifier = Modifier,
+    showSpinner: Boolean = false,
 ) {
+    var loaded by remember(model) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -286,7 +328,8 @@ private fun ZoomableImage(
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(model = model, contentDescription = contentDescription, contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize())
+            modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true })
+        if (showSpinner && !loaded) CircularProgressIndicator(color = Color.White)
     }
 }
 
@@ -317,7 +360,7 @@ private fun readExif(ctx: Context, uri: Uri): ExifInfo? = try {
 
 @Composable
 private fun DetailsPanel(
-    m: LocalMedia, backup: ItemBackup?, backupOn: Boolean, onClose: () -> Unit, modifier: Modifier,
+    m: LocalMedia, backup: ItemBackup?, backupOn: Boolean, isCloud: Boolean, onClose: () -> Unit, modifier: Modifier,
 ) {
     val ctx = LocalContext.current
     val cs = MaterialTheme.colorScheme
@@ -359,13 +402,14 @@ private fun DetailsPanel(
             }
             DetailRow(Icons.Filled.Folder, m.bucket, stringResource(R.string.d_folder))
             val backupTitle = when {
+                isCloud -> stringResource(R.string.backup_ok)
                 !backupOn -> stringResource(R.string.backup_none)
                 backup?.state == BackupState.VERIFIED -> stringResource(if (backup.duplicate) R.string.backup_duplicate else R.string.backup_ok)
                 backup?.state == BackupState.UPLOADING -> stringResource(R.string.backup_uploading, ((backup.progress) * 100).toInt())
                 else -> stringResource(R.string.backup_none)
             }
             DetailRow(
-                if (backup?.state == BackupState.VERIFIED) Icons.Filled.CloudDone else Icons.Filled.CloudOff,
+                if (isCloud || backup?.state == BackupState.VERIFIED) Icons.Filled.CloudDone else Icons.Filled.CloudOff,
                 backupTitle, stringResource(R.string.d_backup),
             )
             DetailRow(Icons.Filled.Update, formatDateTime(m.dateModified), stringResource(R.string.d_modified))
@@ -383,5 +427,56 @@ private fun DetailRow(icon: ImageVector, title: String, subtitle: String?) {
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/**
+ * Plays a cloud video inside the app. The video is fetched into a TEMPORARY app-private cache,
+ * played, and removed again when you leave. Nothing is saved to the gallery unless you tap Download.
+ */
+@Composable
+private fun CloudVideoPlayer(m: LocalMedia, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    var path by remember(m.key) { mutableStateOf<String?>(null) }
+    var progress by remember(m.key) { mutableFloatStateOf(0f) }
+    var failed by remember(m.key) { mutableStateOf(false) }
+    BackHandler { onClose() }
+    LaunchedEffect(m.key) {
+        val ids = CloudUri.ids(m.uri)
+        path = if (ids == null) null else TelegramClient.get(ctx).cloudFullPath(ids.first, ids.second) { progress = it }
+        if (path == null) failed = true
+    }
+    DisposableEffect(m.key) { onDispose { TelegramClient.get(ctx).releaseFullFiles() } }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        val p = path
+        if (p != null) {
+            AndroidView(
+                factory = { c ->
+                    VideoView(c).apply {
+                        val mc = MediaController(c)
+                        mc.setAnchorView(this)
+                        setMediaController(mc)
+                        setVideoPath(p)
+                        setOnPreparedListener { start() }
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                if (failed) {
+                    Text(stringResource(R.string.cl_video_failed), color = Color.White)
+                } else {
+                    CircularProgressIndicator(progress = { progress }, color = Color.White)
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.cl_preparing_video, (progress * 100).toInt()), color = Color.White)
+                }
+            }
+        }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.statusBarsPadding().padding(4.dp).align(Alignment.TopStart),
+            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
     }
 }

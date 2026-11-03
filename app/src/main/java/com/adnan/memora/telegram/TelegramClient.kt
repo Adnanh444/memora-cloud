@@ -41,6 +41,8 @@ sealed class UploadResult {
     class Failure(val message: String) : UploadResult()
 }
 
+class ThumbInfo(val path: String, val width: Int, val height: Int)
+
 class TgUser(val id: Long, val name: String, val phone: String)
 
 /**
@@ -94,6 +96,8 @@ class TelegramClient private constructor(private val app: Context) {
 
     private val sendResults = ConcurrentHashMap<Long, CompletableDeferred<UploadResult>>()
     private val progressByFile = ConcurrentHashMap<Int, (Float) -> Unit>()
+    private val downloadProgress = ConcurrentHashMap<Int, (Float) -> Unit>()
+    private val thumbPaths = ConcurrentHashMap<String, String>()
     private fun deferredFor(tempId: Long): CompletableDeferred<UploadResult> =
         sendResults.getOrPut(tempId) { CompletableDeferred() }
 
@@ -106,6 +110,9 @@ class TelegramClient private constructor(private val app: Context) {
                 val f = obj.file
                 val cb = progressByFile[f.id]
                 if (cb != null && f.size > 0) cb((f.remote.uploadedSize.toFloat() / f.size).coerceIn(0f, 1f))
+                val dcb = downloadProgress[f.id]
+                val total = if (f.size > 0) f.size else f.expectedSize
+                if (dcb != null && total > 0) dcb((f.local.downloadedSize.toFloat() / total).coerceIn(0f, 1f))
             }
             else -> {}
         }
@@ -120,6 +127,7 @@ class TelegramClient private constructor(private val app: Context) {
             is TdApi.AuthorizationStateWaitPassword -> _auth.value = TgAuth.NeedPassword(state.passwordHint ?: "")
             is TdApi.AuthorizationStateReady -> {
                 _auth.value = TgAuth.Ready
+                releaseFullFiles() // remove temporary full-size files left from a previous session
                 loadMe()
             }
             is TdApi.AuthorizationStateLoggingOut -> _auth.value = TgAuth.Starting
@@ -314,7 +322,7 @@ class TelegramClient private constructor(private val app: Context) {
     }
 
     /** Uploads a local file as a DOCUMENT (original quality, no compression). Returns when Telegram confirms. */
-    suspend fun uploadDocument(chatId: Long, path: String, caption: String, onProgress: (Float) -> Unit): UploadResult {
+    suspend fun uploadDocument(chatId: Long, path: String, caption: String, thumb: ThumbInfo?, onProgress: (Float) -> Unit): UploadResult {
         val file = TdApi.InputFileLocal()
         file.path = path
         val text = TdApi.FormattedText()
@@ -324,6 +332,15 @@ class TelegramClient private constructor(private val app: Context) {
         val inputDocument = TdApi.InputDocument()
         inputDocument.document = file
         inputDocument.disableContentTypeDetection = true
+        if (thumb != null) {
+            val tf = TdApi.InputFileLocal()
+            tf.path = thumb.path
+            val it = TdApi.InputThumbnail()
+            it.thumbnail = tf
+            it.width = thumb.width
+            it.height = thumb.height
+            inputDocument.thumbnail = it
+        }
         val content = TdApi.InputMessageDocument()
         content.document = inputDocument
         content.caption = text
@@ -362,6 +379,76 @@ class TelegramClient private constructor(private val app: Context) {
         val m = sendAndWait(q) as? TdApi.Message ?: return false
         val f = (m.content as? TdApi.MessageDocument)?.document?.document ?: return false
         return f.size == expectedSize || f.expectedSize == expectedSize
+    }
+
+    // ---------- cloud viewing: temporary, app-private, never in the user's gallery ----------
+
+    private suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message? {
+        val q = TdApi.GetMessage()
+        q.chatId = chatId
+        q.messageId = messageId
+        return sendAndWait(q) as? TdApi.Message
+    }
+
+    private suspend fun downloadSync(fileId: Int, onProgress: ((Float) -> Unit)? = null): String? {
+        if (onProgress != null) downloadProgress[fileId] = onProgress
+        val q = TdApi.DownloadFile()
+        q.fileId = fileId
+        q.priority = 16
+        q.offset = 0
+        q.limit = 0
+        q.synchronous = true
+        val r = sendAndWait(q)
+        downloadProgress.remove(fileId)
+        val f = r as? TdApi.File ?: return null
+        return if (f.local.isDownloadingCompleted && !f.local.path.isNullOrEmpty()) f.local.path else null
+    }
+
+    /** Small preview for the Cloud grid. Uses the preview uploaded with the file; older uploads fall back to the photo itself (small files only). */
+    suspend fun cloudThumbPath(chatId: Long, messageId: Long): String? {
+        val key = "$chatId:$messageId"
+        thumbPaths[key]?.let { if (File(it).exists()) return it }
+        val doc = (getMessage(chatId, messageId)?.content as? TdApi.MessageDocument)?.document ?: return null
+        val target = doc.thumbnail?.file
+            ?: if ((doc.mimeType ?: "").startsWith("image/") && doc.document.size in 1..15_000_000L) doc.document else null
+        if (target == null) return null
+        val p = downloadSync(target.id) ?: return null
+        thumbPaths[key] = p
+        return p
+    }
+
+    private fun cachePrefs() = app.getSharedPreferences("memora_cloud_cache", Context.MODE_PRIVATE)
+
+    /** Downloads the original into a TEMPORARY app-private cache (for viewing/saving). It is deleted by [releaseFullFiles]. */
+    suspend fun cloudFullPath(chatId: Long, messageId: Long, onProgress: ((Float) -> Unit)? = null): String? {
+        val doc = (getMessage(chatId, messageId)?.content as? TdApi.MessageDocument)?.document ?: return null
+        val id = doc.document.id
+        val ids = cachePrefs().getStringSet("ids", emptySet())!!.toMutableSet()
+        ids.add(id.toString())
+        cachePrefs().edit().putStringSet("ids", ids).apply()
+        return downloadSync(id, onProgress)
+    }
+
+    /** Deletes the temporary full-size files so cloud originals never stay on the phone. */
+    fun releaseFullFiles() {
+        val ids = cachePrefs().getStringSet("ids", emptySet()) ?: emptySet()
+        if (ids.isEmpty()) return
+        for (s in ids) {
+            val id = s.toIntOrNull() ?: continue
+            val d = TdApi.DeleteFile()
+            d.fileId = id
+            client?.send(d) { }
+        }
+        cachePrefs().edit().remove("ids").apply()
+    }
+
+    suspend fun deleteMessages(chatId: Long, ids: List<Long>): Boolean {
+        if (ids.isEmpty()) return true
+        val q = TdApi.DeleteMessages()
+        q.chatId = chatId
+        q.messageIds = ids.toLongArray()
+        q.revoke = true
+        return sendAndWait(q) is TdApi.Ok
     }
 
     /** Removes the storage from this app only. The Telegram channel and its content are untouched. */

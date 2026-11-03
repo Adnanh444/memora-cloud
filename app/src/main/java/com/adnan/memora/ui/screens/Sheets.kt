@@ -75,9 +75,16 @@ fun SheetOption(
     )
 }
 
-/** Delete: shows where the item can be deleted from. Cloud choices become active once the item is backed up (Phase 4+). */
+/** Delete: choose where to delete from. Cloud choices are active when the item is backed up. */
 @Composable
-fun DeleteSheet(count: Int, onDeletePhone: () -> Unit, onDismiss: () -> Unit) {
+fun DeleteSheet(
+    count: Int,
+    onDeletePhone: () -> Unit,
+    onDismiss: () -> Unit,
+    hasCloud: Boolean = false,
+    onDeleteCloud: () -> Unit = {},
+    onDeleteBoth: () -> Unit = {},
+) {
     val trash = android.os.Build.VERSION.SDK_INT >= 30
     MemoraSheet(onDismiss) { close ->
         Text(stringResource(R.string.delete_title, count), style = MaterialTheme.typography.titleLarge,
@@ -90,10 +97,32 @@ fun DeleteSheet(count: Int, onDeletePhone: () -> Unit, onDismiss: () -> Unit) {
             stringResource(if (trash) R.string.delete_phone_sub_trash else R.string.delete_phone_sub_perm),
             destructive = true,
         ) { close(onDeletePhone) }
-        SheetOption(Icons.Filled.Cloud, stringResource(R.string.delete_from_cloud),
-            stringResource(R.string.not_backed_up_item), enabled = false) {}
-        SheetOption(Icons.Filled.DeleteSweep, stringResource(R.string.delete_from_both),
-            stringResource(R.string.not_backed_up_item), enabled = false) {}
+        SheetOption(
+            Icons.Filled.Cloud, stringResource(R.string.delete_from_cloud),
+            stringResource(if (hasCloud) R.string.delete_cloud_sub else R.string.not_backed_up_item),
+            enabled = hasCloud,
+        ) { close(onDeleteCloud) }
+        SheetOption(
+            Icons.Filled.DeleteSweep, stringResource(R.string.delete_from_both),
+            stringResource(if (hasCloud) R.string.delete_both_sub else R.string.not_backed_up_item),
+            enabled = hasCloud, destructive = true,
+        ) { close(onDeleteBoth) }
+        TextButton(onClick = { close {} }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Text(stringResource(R.string.cancel))
+        }
+    }
+}
+
+/** Delete from the Cloud tab: items go to the cloud bin and are removed from storage after 30 days. */
+@Composable
+fun CloudDeleteSheet(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    MemoraSheet(onDismiss) { close ->
+        Text(stringResource(R.string.delete_title, count), style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+        SheetOption(
+            Icons.Filled.Cloud, stringResource(R.string.delete_from_cloud),
+            stringResource(R.string.delete_cloud_sub), destructive = true,
+        ) { close(onConfirm) }
         TextButton(onClick = { close {} }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text(stringResource(R.string.cancel))
         }

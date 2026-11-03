@@ -1,5 +1,8 @@
 package com.adnan.memora.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -37,6 +40,15 @@ import com.adnan.memora.ui.theme.GradientTitle
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.brandBrush
 import com.adnan.memora.ui.theme.glass
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
 
 private val LogoBrush = Brush.linearGradient(listOf(Color(0xFF4F8CFF), Color(0xFF6A3FE0)))
 
@@ -79,6 +91,8 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
     }
     var showTheme by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
+    var showStyle by remember { mutableStateOf(false) }
+    val cleanNow = Prefs.cleanStyle(ctx)
     val night = Prefs.themeMode(ctx)
     val langTag = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
 
@@ -101,6 +115,10 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
             SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), backupLabel, onBackup)
             SettingRow(Icons.Filled.ContentCopy, stringResource(R.string.dup_title), stringResource(R.string.dup_sub), onDuplicates)
             SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
+            SettingRow(
+                Icons.Filled.Style, stringResource(R.string.ui_style),
+                stringResource(if (cleanNow) R.string.style_clean else R.string.style_neon),
+            ) { showStyle = true }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)
         }
@@ -111,6 +129,16 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
         options = themeModes.map { it.second to (it.first == night) },
         onPick = { Prefs.setThemeMode(ctx, themeModes[it].first); showTheme = false },
         onDismiss = { showTheme = false },
+    )
+    if (showStyle) ChoiceSheet(
+        title = stringResource(R.string.ui_style),
+        options = listOf(stringResource(R.string.style_clean) to cleanNow, stringResource(R.string.style_neon) to !cleanNow),
+        onPick = {
+            showStyle = false
+            Prefs.setCleanStyle(ctx, it == 0)
+            ctx.findActivity()?.recreate()
+        },
+        onDismiss = { showStyle = false },
     )
     if (showLang) ChoiceSheet(
         title = stringResource(R.string.language),

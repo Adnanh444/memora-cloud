@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.adnan.memora.backup.toCloudMedia
 
 data class FolderInfo(val name: String, val count: Int, val cover: LocalMedia, val latest: Long)
 
@@ -36,9 +37,28 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    // Which list the full-screen viewer is showing (set when a photo is opened).
     private val _viewerItems = MutableStateFlow<List<LocalMedia>>(emptyList())
     val viewerItems: StateFlow<List<LocalMedia>> = _viewerItems
+
+    /** Backed-up files as shown in the Cloud tab (previews come from Telegram on demand). */
+    val cloudMedia: StateFlow<List<LocalMedia>> = com.adnan.memora.backup.BackupEngine.cloud
+        .map { list -> list.map { it.toCloudMedia() } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val cloudTrash: StateFlow<List<TrashedMedia>> = com.adnan.memora.backup.BackupEngine.cloudTrash
+        .map { list -> list.map { TrashedMedia(it.toCloudMedia(), it.trashedAt + 30L * 24 * 3600 * 1000) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    init {
+        // when a cloud item leaves the cloud (e.g. moved to the cloud bin) close it in the viewer list
+        viewModelScope.launch {
+            cloudMedia.collect { c ->
+                val keys = c.map { it.key }.toHashSet()
+                _viewerItems.value = _viewerItems.value.filter { !com.adnan.memora.cloud.CloudUri.isCloud(it.uri) || it.key in keys }
+            }
+        }
+    }
+
+    // Which list the full-screen viewer is showing (set when a photo is opened).
     var viewerStart: Int = 0
     var openFolderName: String = ""
 
@@ -54,7 +74,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             val fresh = repo.loadAll()
             _all.value = fresh
             val keys = fresh.map { it.key }.toHashSet()
-            _viewerItems.value = _viewerItems.value.filter { it.key in keys }
+            _viewerItems.value = _viewerItems.value.filter { it.key in keys || com.adnan.memora.cloud.CloudUri.isCloud(it.uri) }
             _trash.value = repo.loadTrashed()
             _loading.value = false
         }
@@ -69,4 +89,5 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     fun selectAll(pool: List<LocalMedia>) { selectMode.value = true; selection.value = pool.map { it.key }.toSet() }
     fun clearSelection() { selection.value = emptySet(); selectMode.value = false }
     fun selectedMedia(): List<LocalMedia> = _all.value.filter { it.key in selection.value }
+    fun selectedCloud(): List<LocalMedia> = cloudMedia.value.filter { it.key in selection.value }
 }

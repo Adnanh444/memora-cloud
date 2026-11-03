@@ -30,9 +30,10 @@ import com.adnan.memora.ui.theme.brandBrush
 import com.adnan.memora.ui.theme.glass
 
 @Composable
-fun LibraryScreen(vm: GalleryViewModel, onFolder: (String) -> Unit, onBin: () -> Unit) {
+fun LibraryScreen(vm: GalleryViewModel, onFolder: (String) -> Unit, onBin: () -> Unit, onCloudBin: () -> Unit) {
     val folders by vm.folders.collectAsState()
     val trash by vm.trash.collectAsState()
+    val cloudTrash by vm.cloudTrash.collectAsState()
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         GradientTitle(stringResource(R.string.nav_library), Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
         LazyVerticalGrid(
@@ -56,6 +57,22 @@ fun LibraryScreen(vm: GalleryViewModel, onFolder: (String) -> Unit, onBin: () ->
                     Column {
                         Text(stringResource(R.string.bin), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    Modifier.fillMaxWidth().glass().clickable(onClick = onCloudBin).padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
+                        Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(stringResource(R.string.cl_bin), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.cl_bin_sub, cloudTrash.size), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
