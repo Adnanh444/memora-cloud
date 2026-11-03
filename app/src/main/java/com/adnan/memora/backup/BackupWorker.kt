@@ -3,6 +3,9 @@ package com.adnan.memora.backup
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Intent
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -35,6 +38,11 @@ private fun buildNotification(ctx: Context, done: Int, total: Int, name: String?
         .setOngoing(true)
         .setOnlyAlertOnce(true)
     if (total > 0) b.setProgress(total, done, false) else b.setProgress(0, 0, true)
+    val pause = PendingIntent.getBroadcast(
+        ctx, 0, Intent(ctx, BackupActionReceiver::class.java).setAction(BackupActionReceiver.ACTION_PAUSE),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+    b.addAction(android.R.drawable.ic_media_pause, ctx.getString(R.string.bk_pause), pause)
     return b.build()
 }
 
@@ -43,6 +51,7 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
     override suspend fun doWork(): Result {
         val ctx = applicationContext
         BackupEngine.init(ctx)
+        if (BackupSettings.load(ctx).paused) return Result.success()
         ensureChannel(ctx)
         BackupEngine.scanAndEnqueue(ctx)
         try {
@@ -89,10 +98,12 @@ object BackupScheduler {
         .setRequiresCharging(cfg.chargingOnly)
         .build()
 
-    fun runNow(ctx: Context) {
+    fun runNow(ctx: Context, append: Boolean = false) {
         val cfg = BackupSettings.load(ctx)
         val req = OneTimeWorkRequestBuilder<BackupWorker>().setConstraints(constraints(cfg)).build()
-        WorkManager.getInstance(ctx).enqueueUniqueWork(NOW, ExistingWorkPolicy.KEEP, req)
+        WorkManager.getInstance(ctx).enqueueUniqueWork(
+            NOW, if (append) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP, req,
+        )
     }
 
     fun armTrigger(ctx: Context) {

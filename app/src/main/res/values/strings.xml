@@ -184,4 +184,19 @@
     <string name="bk_notif_channel">Backup progress</string>
     <string name="bk_notif_title">Backing up to Telegram</string>
     <string name="bk_notif_text">%1$d of %2$d</string>
+    <string name="backup_user_paused">Backup paused</string>
+    <string name="backup_duplicate">Already backed up (same file is already in the cloud)</string>
+    <string name="dup_title">Duplicate scanner</string>
+    <string name="dup_sub">Find identical photos and videos</string>
+    <string name="dup_intro">Finds identical copies on this phone, even with different names or in different folders. Nothing is deleted automatically: you choose which copy to keep.</string>
+    <string name="dup_scan">Scan phone</string>
+    <string name="dup_scanning">Scanning %1$d of %2$d</string>
+    <string name="dup_cancel">Cancel scan</string>
+    <string name="dup_none">No duplicates found</string>
+    <string name="dup_group">%1$d identical copies · %2$s each</string>
+    <string name="dup_hint">Tap a copy to mark it for deletion. Keep at least one copy in every group.</string>
+    <string name="dup_select_extra">Select extra copies</string>
+    <string name="dup_delete_selected">Delete selected (%1$d)</string>
+    <string name="dup_keep_one">Keep at least one copy in every group.</string>
+    <string name="dup_in_cloud">Backed up in the cloud</string>
 </resources>

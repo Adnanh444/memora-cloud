@@ -37,7 +37,7 @@ fun AuroraBackground(modifier: Modifier = Modifier) {
     val a by t.animateFloat(0f, 1f, infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Reverse), label = "a")
     val b by t.animateFloat(1f, 0f, infiniteRepeatable(tween(18000, easing = LinearEasing), RepeatMode.Reverse), label = "b")
     val cs = MaterialTheme.colorScheme
-    val k = if (cs.background.luminance() < 0.5f) 0.24f else 0.16f
+    val k = if (cs.background.luminance() < 0.5f) 0.10f else 0.08f
     Canvas(modifier) {
         val w = size.width
         val h = size.height
@@ -56,10 +56,10 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(26.dp)): Modifier {
     val c = MaterialTheme.colorScheme
     return this
         .clip(shape)
-        .background(c.surfaceContainerHigh.copy(alpha = 0.58f))
+        .background(c.surfaceContainerHigh.copy(alpha = 0.95f))
         .border(
             1.dp,
-            Brush.linearGradient(listOf(c.primary.copy(alpha = 0.55f), c.secondary.copy(alpha = 0.25f), c.tertiary.copy(alpha = 0.40f))),
+            Brush.linearGradient(listOf(c.primary.copy(alpha = 0.75f), c.secondary.copy(alpha = 0.45f), c.tertiary.copy(alpha = 0.55f))),
             shape,
         )
 }
@@ -77,8 +77,7 @@ fun Modifier.appear(delayMs: Int = 0): Modifier = composed {
 fun GradientTitle(text: String, modifier: Modifier = Modifier) {
     Text(
         text, modifier = modifier,
-        style = MaterialTheme.typography.headlineMedium.copy(
-            brush = brandBrush(), fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp,
-        ),
+        color = MaterialTheme.colorScheme.onBackground,
+        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
     )
 }

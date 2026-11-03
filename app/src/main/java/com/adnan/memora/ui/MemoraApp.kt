@@ -96,8 +96,10 @@ fun MemoraApp() {
                         onAbout = { nav.navigate("about") },
                         onTelegram = { nav.navigate("telegram") },
                         onBackup = { nav.navigate("backup") },
+                        onDuplicates = { nav.navigate("duplicates") },
                     )
                 }
+                composable("duplicates") { DuplicatesScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("backup") {
                     BackupScreen(gallery, onBack = { nav.popBackStack() }, onOpenTelegram = { nav.navigate("telegram") })
                 }
@@ -121,8 +123,7 @@ private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
     val shape = RoundedCornerShape(32.dp)
     Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
         Row(
-            Modifier.fillMaxWidth().glass(shape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)).padding(6.dp),
+            Modifier.fillMaxWidth().glass(shape).padding(6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -134,7 +135,7 @@ private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
 @Composable
 private fun NavItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val tint by animateColorAsState(if (selected) cs.onPrimary else cs.onSurfaceVariant, label = "tint")
+    val tint by animateColorAsState(if (selected) cs.onPrimary else cs.onSurface.copy(alpha = 0.85f), label = "tint")
     val pill = RoundedCornerShape(26.dp)
     val bg = if (selected) Modifier.background(Brush.linearGradient(listOf(cs.primary, cs.secondary)), pill) else Modifier
     Row(

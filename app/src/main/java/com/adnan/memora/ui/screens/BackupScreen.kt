@@ -10,6 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -100,14 +102,25 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
-                        scope.launch { BackupEngine.scanAndEnqueue(ctx); BackupScheduler.runNow(ctx) }
+                        scope.launch {
+                            if (cfg.paused) { BackupEngine.resume(ctx); cfg = cfg.copy(paused = false) }
+                            BackupEngine.scanAndEnqueue(ctx); BackupScheduler.runNow(ctx)
+                        }
                     }, enabled = ready) { Text(stringResource(R.string.bk_now)) }
                     if (failedN > 0) OutlinedButton(onClick = { scope.launch { BackupEngine.retryFailed(ctx) } }, enabled = ready) {
                         Text(stringResource(R.string.bk_retry))
                     }
                 }
-                if (cfg.enabled) {
-                    TextButton(onClick = { apply(cfg.copy(paused = !cfg.paused)) }) {
+                if (cfg.paused || summary.phase == BackupPhase.RUNNING || waitingN > 0) {
+                    FilledTonalButton(
+                        onClick = {
+                            if (cfg.paused) { BackupEngine.resume(ctx); cfg = cfg.copy(paused = false) }
+                            else { BackupEngine.pause(ctx); cfg = cfg.copy(paused = true) }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(if (cfg.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, null)
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(if (cfg.paused) R.string.bk_resume else R.string.bk_pause))
                     }
                 }

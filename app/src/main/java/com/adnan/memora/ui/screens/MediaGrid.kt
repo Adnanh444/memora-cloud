@@ -115,7 +115,7 @@ fun MediaGrid(list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Uni
             ) { i ->
                 when (val e = built.entries[i]) {
                     is Entry.Header -> Text(
-                        e.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        e.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp),
                     )
                     is Entry.Item -> MediaCell(
@@ -244,7 +244,7 @@ private fun MediaCell(
         if (m.isVideo) {
             Row(
                 Modifier.align(Alignment.BottomStart).padding(7.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                    .background(Color.Black.copy(alpha = 0.72f)).padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Filled.PlayArrow, null, Modifier.size(14.dp), tint = Color.White)
@@ -268,7 +268,7 @@ private fun MediaCell(
 /** Tiny cloud status on a thumbnail: uploading (with progress), backed up, not backed up, failed. */
 @Composable
 private fun StatusBadge(b: ItemBackup, modifier: Modifier) {
-    Box(modifier.size(20.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)), Alignment.Center) {
+    Box(modifier.size(24.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.7f)), Alignment.Center) {
         when (b.state) {
             BackupState.UPLOADING -> CircularProgressIndicator(
                 progress = { b.progress }, modifier = Modifier.size(14.dp), strokeWidth = 2.dp,

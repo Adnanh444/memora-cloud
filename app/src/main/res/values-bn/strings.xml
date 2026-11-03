@@ -184,4 +184,19 @@
     <string name="bk_notif_channel">ব্যাকআপের অগ্রগতি</string>
     <string name="bk_notif_title">Telegram-এ ব্যাকআপ হচ্ছে</string>
     <string name="bk_notif_text">%2$d এর মধ্যে %1$d</string>
+    <string name="backup_user_paused">ব্যাকআপ থামানো আছে</string>
+    <string name="backup_duplicate">আগেই ব্যাকআপ করা আছে (একই ফাইল ক্লাউডে আছে)</string>
+    <string name="dup_title">ডুপ্লিকেট স্ক্যানার</string>
+    <string name="dup_sub">একই রকম ছবি ও ভিডিও খুঁজুন</string>
+    <string name="dup_intro">এই ফোনে একই রকম কপি খুঁজে বের করে, নাম বা ফোল্ডার আলাদা হলেও। কিছুই নিজে নিজে মোছা হয় না: কোন কপি রাখবেন আপনি বেছে নেবেন।</string>
+    <string name="dup_scan">ফোন স্ক্যান করুন</string>
+    <string name="dup_scanning">স্ক্যান হচ্ছে %2$d এর মধ্যে %1$d</string>
+    <string name="dup_cancel">স্ক্যান বাতিল</string>
+    <string name="dup_none">কোনো ডুপ্লিকেট পাওয়া যায়নি</string>
+    <string name="dup_group">%1$dটি একই কপি · প্রতিটি %2$s</string>
+    <string name="dup_hint">মুছতে চাইলে কপিটিতে ট্যাপ করুন। প্রতিটি গ্রুপে অন্তত একটি কপি রাখুন।</string>
+    <string name="dup_select_extra">বাড়তি কপি বাছাই</string>
+    <string name="dup_delete_selected">নির্বাচিত মুছুন (%1$d)</string>
+    <string name="dup_keep_one">প্রতিটি গ্রুপে অন্তত একটি কপি রাখুন।</string>
+    <string name="dup_in_cloud">ক্লাউডে ব্যাকআপ আছে</string>
 </resources>

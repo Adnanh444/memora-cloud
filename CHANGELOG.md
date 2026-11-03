@@ -1,4 +1,9 @@
 # Changelog
+## 0.6.0 — Phase 5: Duplicates + Pause + better visibility
+- Pause/Resume button on the Photos backup strip, Backup screen and notification; Pause stops the current upload immediately.
+- Duplicate scanner (SHA-256, size pre-filter, cached hashes); you choose what to delete; at least one copy is always kept.
+- Details show 'Already backed up' for duplicates of cloud files.
+- Higher-contrast dark and light themes, solid panels, larger text.
 ## 0.5.1 — Fix: upload for current TDLib
 ## 0.5.0 — Phase 4: Backup engine
 - Manual and automatic backup to the private Telegram channel (originals uploaded as documents, no compression).

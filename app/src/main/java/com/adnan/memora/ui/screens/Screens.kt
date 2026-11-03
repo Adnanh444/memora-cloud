@@ -69,7 +69,7 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 }
 
 @Composable
-fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit) {
+fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit, onDuplicates: () -> Unit) {
     val ctx = LocalContext.current
     val backupLabel = stringResource(if (com.adnan.memora.backup.BackupSettings.load(ctx).enabled) R.string.bk_on else R.string.bk_off)
     val tgAuth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
@@ -99,6 +99,7 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
         Column(Modifier.fillMaxWidth().appear(120).glass()) {
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
             SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), backupLabel, onBackup)
+            SettingRow(Icons.Filled.ContentCopy, stringResource(R.string.dup_title), stringResource(R.string.dup_sub), onDuplicates)
             SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)

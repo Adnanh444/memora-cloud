@@ -14,6 +14,8 @@ import com.adnan.memora.telegram.TelegramClient
 import com.adnan.memora.telegram.UploadResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +42,7 @@ object BackupEngine {
     private lateinit var appCtx: Context
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val running = MutableStateFlow(false)
+    @Volatile private var uploadJob: Job? = null
     private val live = MutableStateFlow<Pair<String, Float>?>(null)
     private val configFlow = MutableStateFlow<BackupConfig?>(null)
 
@@ -75,7 +78,8 @@ object BackupEngine {
         for (e in entries) {
             val isLive = lv != null && lv.first == e.uri
             val item = when (e.state) {
-                BackupEntry.ST_VERIFIED, BackupEntry.ST_DUPLICATE -> { done++; ItemBackup(BackupState.VERIFIED) }
+                BackupEntry.ST_VERIFIED -> { done++; ItemBackup(BackupState.VERIFIED) }
+                BackupEntry.ST_DUPLICATE -> { done++; ItemBackup(BackupState.VERIFIED, 0f, true) }
                 BackupEntry.ST_UPLOADING -> {
                     if (isLive) { currentName = e.name; currentProgress = lv!!.second } else waiting++
                     ItemBackup(BackupState.UPLOADING, if (isLive) lv!!.second else 0f)
@@ -89,11 +93,28 @@ object BackupEngine {
         val ready = st is StorageStatus.Verified
         val phase = when {
             !active || !ready -> BackupPhase.NOT_SET_UP
+            cfg?.paused == true -> BackupPhase.PAUSED
             run -> BackupPhase.RUNNING
-            cfg?.paused == true || waiting > 0 -> BackupPhase.PAUSED
+            waiting > 0 -> BackupPhase.PAUSED
             else -> BackupPhase.IDLE
         }
-        return BackupSummary(phase, done, entries.size, currentName, currentProgress) to map
+        return BackupSummary(phase, done, entries.size, currentName, currentProgress, cfg?.paused == true, waiting) to map
+    }
+
+    /** Stops the upload that is running RIGHT NOW (it goes back to the queue) and keeps backup paused. */
+    fun pause(ctx: Context) {
+        val cfg = BackupSettings.load(ctx).copy(paused = true)
+        BackupSettings.save(ctx, cfg)
+        configFlow.value = cfg
+        uploadJob?.cancel()
+    }
+
+    /** Resumes backup from where the queue left off. */
+    fun resume(ctx: Context) {
+        val cfg = BackupSettings.load(ctx).copy(paused = false)
+        BackupSettings.save(ctx, cfg)
+        configFlow.value = cfg
+        BackupScheduler.runNow(ctx, append = true)
     }
 
     fun updateConfig(ctx: Context, cfg: BackupConfig) {
@@ -143,12 +164,19 @@ object BackupEngine {
         try {
             dao.resetUploading()
             val todo = dao.pendingUris(MAX_AUTO_ATTEMPTS)
-            for (uri in todo) {
-                if (BackupSettings.load(ctx).paused) break
-                processOne(ctx, dao, tg, chatId, uri)
+            coroutineScope {
+                val job = launch {
+                    for (uri in todo) {
+                        if (BackupSettings.load(ctx).paused) break
+                        processOne(ctx, dao, tg, chatId, uri)
+                    }
+                }
+                uploadJob = job
+                job.join()
             }
         } finally {
             withContext(NonCancellable) {
+                uploadJob = null
                 running.value = false
                 live.value = null
             }

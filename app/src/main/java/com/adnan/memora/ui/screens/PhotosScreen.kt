@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.adnan.memora.R
+import com.adnan.memora.backup.BackupEngine
+import com.adnan.memora.backup.BackupScheduler
 import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.BackupSummary
 import com.adnan.memora.gallery.GalleryViewModel
@@ -90,7 +93,16 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
             if (sel) SelectionHeader(vm, items)
             else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() })
         }
-        BackupStrip(summary, onBackup)
+        BackupStrip(
+            summary, onOpen = onBackup,
+            onAction = {
+                when {
+                    summary.paused -> BackupEngine.resume(ctx)
+                    summary.phase == BackupPhase.RUNNING -> BackupEngine.pause(ctx)
+                    else -> BackupScheduler.runNow(ctx)
+                }
+            },
+        )
         PullToRefreshBox(isRefreshing = loading, onRefresh = { vm.refresh() }, modifier = Modifier.fillMaxSize()) {
             if (items.isEmpty()) {
                 if (loading) SkeletonGrid()
@@ -128,50 +140,70 @@ private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit) {
     }
 }
 
-/** Minimal backup status. Shows real state only: "not set up" until the backup engine exists. */
+/** Backup status with a Pause / Resume button. Shows real state only. */
 @Composable
-fun BackupStrip(s: BackupSummary, onClick: () -> Unit) {
+fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp).animateContentSize()) {
+    val shape = RoundedCornerShape(16.dp)
+    val showAction = s.paused || s.phase == BackupPhase.RUNNING || (s.phase == BackupPhase.PAUSED && s.waiting > 0)
+    val showPlay = s.paused || s.phase != BackupPhase.RUNNING
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).animateContentSize()) {
         Row(
-            Modifier.clip(RoundedCornerShape(14.dp)).background(cs.surfaceContainer.copy(alpha = 0.6f))
-                .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+            Modifier.fillMaxWidth().clip(shape).background(cs.surfaceContainerHigh).border(1.dp, cs.outlineVariant, shape)
+                .clickable(onClick = onOpen).padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            when (s.phase) {
-                BackupPhase.NOT_SET_UP -> {
-                    Icon(Icons.Filled.CloudOff, null, Modifier.size(16.dp), tint = cs.onSurfaceVariant)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.backup_off), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-                }
-                BackupPhase.RUNNING -> {
-                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.backing_up, s.done, s.total), style = MaterialTheme.typography.labelMedium)
-                    if (s.currentName != null) {
-                        Text(
-                            "  ·  ${s.currentName} ${(s.currentProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
+            Row(Modifier.weight(1f).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                when {
+                    s.phase == BackupPhase.NOT_SET_UP -> {
+                        Icon(Icons.Filled.CloudOff, null, Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.backup_off), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
+                    }
+                    s.paused -> {
+                        Icon(Icons.Filled.Pause, null, Modifier.size(20.dp), tint = cs.tertiary)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.backup_user_paused), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
+                    }
+                    s.phase == BackupPhase.RUNNING -> {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.5.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(stringResource(R.string.backing_up, s.done, s.total), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
+                            if (s.currentName != null) {
+                                Text(
+                                    "${s.currentName} · ${(s.currentProgress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                    s.phase == BackupPhase.IDLE -> {
+                        Icon(Icons.Filled.CloudDone, null, Modifier.size(20.dp), tint = cs.primary)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.backup_all_done), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
+                    }
+                    else -> {
+                        Icon(Icons.Filled.CloudOff, null, Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.backup_paused), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
                     }
                 }
-                BackupPhase.IDLE -> {
-                    Icon(Icons.Filled.CloudDone, null, Modifier.size(16.dp), tint = cs.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.backup_all_done), style = MaterialTheme.typography.labelMedium)
-                }
-                BackupPhase.PAUSED -> {
-                    Icon(Icons.Filled.CloudOff, null, Modifier.size(16.dp), tint = cs.onSurfaceVariant)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.backup_paused), style = MaterialTheme.typography.labelMedium)
+            }
+            if (showAction) {
+                FilledTonalIconButton(onClick = onAction) {
+                    Icon(
+                        if (showPlay) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        stringResource(if (showPlay) R.string.bk_resume else R.string.bk_pause),
+                    )
                 }
             }
         }
-        if (s.phase == BackupPhase.RUNNING) {
+        if (s.phase == BackupPhase.RUNNING && !s.paused) {
             LinearProgressIndicator(
                 progress = { if (s.total > 0) s.done.toFloat() / s.total else 0f },
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(3.dp).clip(RoundedCornerShape(2.dp)),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
             )
         }
     }

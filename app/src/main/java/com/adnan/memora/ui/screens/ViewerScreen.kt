@@ -360,7 +360,7 @@ private fun DetailsPanel(
             DetailRow(Icons.Filled.Folder, m.bucket, stringResource(R.string.d_folder))
             val backupTitle = when {
                 !backupOn -> stringResource(R.string.backup_none)
-                backup?.state == BackupState.VERIFIED -> stringResource(R.string.backup_ok)
+                backup?.state == BackupState.VERIFIED -> stringResource(if (backup.duplicate) R.string.backup_duplicate else R.string.backup_ok)
                 backup?.state == BackupState.UPLOADING -> stringResource(R.string.backup_uploading, ((backup.progress) * 100).toInt())
                 else -> stringResource(R.string.backup_none)
             }
