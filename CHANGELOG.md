@@ -1,10 +1,9 @@
 # Changelog
 ## 0.5.0 — Phase 4: Backup engine
-- Select photos and tap the cloud icon to back them up to your Telegram channel (originals, uncompressed).
-- Persistent upload queue with retry (5 tries, growing delay) and resume; background upload with a notification.
-- Automatic backup per folder (cloud-sync icon on the folder screen); new photos are picked up about every 30 minutes.
-- Wi-Fi only switch (on by default). Backup strip, thumbnail badges and a Retry button show the real state.
-- A photo counts as backed up only after Telegram confirms it and the size is read back and matches.
+- Manual and automatic backup to the private Telegram channel (originals uploaded as documents, no compression).
+- Persistent queue, retry, pause/resume, Wi-Fi/charging rules, new-media detection, progress notification.
+- SHA-256 hashing while copying; identical files already backed up are skipped.
+- Upload verified with Telegram before a file counts as backed up; live strip, thumbnail badges and progress.
 ## 0.4.2 — Permanent signing key support (updates install over the old app)
 ## 0.4.1 — Each user enters their own Telegram API key (stored encrypted on the phone)
 ## 0.4.0 — Phase 3: Telegram connection

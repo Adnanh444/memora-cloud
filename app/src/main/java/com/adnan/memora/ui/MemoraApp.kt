@@ -75,7 +75,12 @@ fun MemoraApp() {
                 popExitTransition = { fadeOut(tween(150)) + scaleOut(tween(200), targetScale = 1.05f) },
             ) {
                 composable(Tab.Photos.route) {
-                    PhotosScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onSearch = { nav.navigate("search") })
+                    PhotosScreen(
+                        gallery,
+                        onOpenViewer = { nav.navigate("viewer") },
+                        onSearch = { nav.navigate("search") },
+                        onBackup = { nav.navigate("backup") },
+                    )
                 }
                 composable(Tab.Cloud.route) { PlaceholderScreen(R.string.nav_cloud, Icons.Filled.Cloud) }
                 composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
@@ -87,7 +92,14 @@ fun MemoraApp() {
                     )
                 }
                 composable(Tab.Settings.route) {
-                    SettingsScreen(onAbout = { nav.navigate("about") }, onTelegram = { nav.navigate("telegram") })
+                    SettingsScreen(
+                        onAbout = { nav.navigate("about") },
+                        onTelegram = { nav.navigate("telegram") },
+                        onBackup = { nav.navigate("backup") },
+                    )
+                }
+                composable("backup") {
+                    BackupScreen(gallery, onBack = { nav.popBackStack() }, onOpenTelegram = { nav.navigate("telegram") })
                 }
                 composable("telegram") { TelegramScreen(onBack = { nav.popBackStack() }) }
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }

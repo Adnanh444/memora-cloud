@@ -1,13 +1,7 @@
 package com.adnan.memora.ui.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +34,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.adnan.memora.R
+import com.adnan.memora.backup.BackupEngine
+import com.adnan.memora.telegram.StorageStatus
+import com.adnan.memora.telegram.TelegramClient
 import com.adnan.memora.data.BackupState
 import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.GalleryViewModel
@@ -316,21 +313,9 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
     val ctx = LocalContext.current
     val selection by vm.selection.collectAsState()
     var confirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val deleteAction = rememberDeleteAction(onDone = { vm.clearSelection(); vm.refresh() })
     BackHandler { vm.clearSelection() }
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    val backUp = {
-        val n = selection.size
-        if (vm.backUp(vm.selectedMedia())) {
-            Toast.makeText(ctx, ctx.getString(R.string.backup_queued, n), Toast.LENGTH_SHORT).show()
-            vm.clearSelection()
-            if (Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-            ) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            Toast.makeText(ctx, R.string.backup_need_telegram, Toast.LENGTH_LONG).show()
-        }
-    }
     if (confirm) DeleteSheet(
         count = selection.size,
         onDeletePhone = { deleteAction(vm.selectedMedia()) },
@@ -346,8 +331,19 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
         )
         IconButton(onClick = { vm.selectAll(pool) }) { Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all)) }
-        IconButton(onClick = { backUp() }, enabled = selection.isNotEmpty()) {
-            Icon(Icons.Filled.CloudUpload, stringResource(R.string.backup_action))
+        IconButton(onClick = {
+            if (TelegramClient.get(ctx).storageStatus.value !is StorageStatus.Verified) {
+                Toast.makeText(ctx, R.string.bk_need_tg, Toast.LENGTH_LONG).show()
+            } else {
+                val picked = vm.selectedMedia()
+                scope.launch {
+                    val n = BackupEngine.enqueueManual(ctx, picked)
+                    Toast.makeText(ctx, ctx.getString(R.string.bk_queued, n), Toast.LENGTH_SHORT).show()
+                }
+                vm.clearSelection()
+            }
+        }, enabled = selection.isNotEmpty()) {
+            Icon(Icons.Filled.CloudUpload, stringResource(R.string.bk_now))
         }
         IconButton(onClick = { shareMedia(ctx, vm.selectedMedia()) }, enabled = selection.isNotEmpty()) {
             Icon(Icons.Filled.Share, stringResource(R.string.share))

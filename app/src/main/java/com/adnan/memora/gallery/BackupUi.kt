@@ -2,7 +2,7 @@ package com.adnan.memora.gallery
 
 import com.adnan.memora.data.BackupState
 
-/** What the backup strip shows. Fed by the backup engine. */
+/** What the backup strip shows. The real backup engine (Phase 4) will feed this; until then it honestly says "not set up". */
 enum class BackupPhase { NOT_SET_UP, IDLE, RUNNING, PAUSED }
 
 data class BackupSummary(
@@ -11,7 +11,6 @@ data class BackupSummary(
     val total: Int = 0,
     val currentName: String? = null,
     val currentProgress: Float = 0f,
-    val failed: Int = 0,
 )
 
 /** Per-item cloud state shown as a small badge on thumbnails. */

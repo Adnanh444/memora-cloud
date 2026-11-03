@@ -22,8 +22,8 @@ class MemoraApplication : Application(), ImageLoaderFactory {
         AppCompatDelegate.setDefaultNightMode(Prefs.themeMode(this))
         // Start Telegram only if this build has an API key; restores a previous login automatically.
         com.adnan.memora.telegram.TelegramClient.get(this).start()
-        // Phase 4: restore the folder watcher and continue any unfinished uploads.
-        com.adnan.memora.backup.BackupEngine.get(this).schedule()
+        com.adnan.memora.backup.BackupEngine.init(this)
+        com.adnan.memora.backup.BackupScheduler.sync(this)
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

@@ -79,12 +79,12 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     // Community-maintained prebuilt TDLib (Telegram client library). Pinned to an exact version.
     implementation("io.github.tdlib-android:core:0.1.1")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
-    // Phase 4: background uploads that survive the app being closed.
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // WorkManager is added back in Phase 4 (backup engine); leaving it out keeps the APK smaller now.
 }

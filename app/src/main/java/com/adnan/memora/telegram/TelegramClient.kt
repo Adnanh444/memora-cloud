@@ -4,18 +4,20 @@ import android.content.Context
 import android.os.Build
 import com.adnan.memora.BuildConfig
 import com.adnan.memora.R
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 sealed class TgAuth {
     object NeedCredentials : TgAuth()
@@ -34,12 +36,12 @@ sealed class StorageStatus {
     class Problem(val message: String) : StorageStatus()
 }
 
+sealed class UploadResult {
+    class Success(val messageId: Long) : UploadResult()
+    class Failure(val message: String) : UploadResult()
+}
+
 class TgUser(val id: Long, val name: String, val phone: String)
-
-/** An upload that did not finish. permanent = retrying the same file cannot help. */
-class TgUploadException(message: String, val permanent: Boolean) : Exception(message)
-
-private class PendingUpload(val onProgress: (Float) -> Unit, val cont: CancellableContinuation<TdApi.Message>)
 
 /**
  * Talks to Telegram through TDLib (official login: phone, code, optional two-step password).
@@ -90,102 +92,24 @@ class TelegramClient private constructor(private val app: Context) {
         c.send(query) { r -> cb(r) }
     }
 
+    private val sendResults = ConcurrentHashMap<Long, CompletableDeferred<UploadResult>>()
+    private val progressByFile = ConcurrentHashMap<Int, (Float) -> Unit>()
+    private fun deferredFor(tempId: Long): CompletableDeferred<UploadResult> =
+        sendResults.getOrPut(tempId) { CompletableDeferred() }
+
     private fun onUpdate(obj: TdApi.Object) {
         when (obj) {
             is TdApi.UpdateAuthorizationState -> handleAuth(obj.authorizationState)
-            is TdApi.UpdateFile -> onFileUpdate(obj.file)
-            is TdApi.UpdateMessageSendSucceeded -> {
-                val p = uploads.remove(obj.oldMessageId)
-                uploadFiles.values.remove(obj.oldMessageId)
-                if (p != null && p.cont.isActive) p.cont.resume(obj.message)
-            }
-            is TdApi.UpdateMessageSendFailed -> {
-                val p = uploads.remove(obj.oldMessageId)
-                uploadFiles.values.remove(obj.oldMessageId)
-                if (p != null && p.cont.isActive) {
-                    p.cont.resumeWithException(TgUploadException("Telegram could not send this file.", false))
-                    // Clean the failed local message so it is not retried behind our back.
-                    val d = TdApi.DeleteMessages()
-                    d.chatId = obj.message.chatId
-                    d.messageIds = longArrayOf(obj.message.id)
-                    d.revoke = true
-                    client?.send(d) { }
-                }
+            is TdApi.UpdateMessageSendSucceeded -> deferredFor(obj.oldMessageId).complete(UploadResult.Success(obj.message.id))
+            is TdApi.UpdateMessageSendFailed -> deferredFor(obj.oldMessageId).complete(UploadResult.Failure(app.getString(R.string.bk_err_send_failed)))
+            is TdApi.UpdateFile -> {
+                val f = obj.file
+                val cb = progressByFile[f.id]
+                if (cb != null && f.size > 0) cb((f.remote.uploadedSize.toFloat() / f.size).coerceIn(0f, 1f))
             }
             else -> {}
         }
     }
-
-    // ---------------- Phase 4: uploads ----------------
-
-    private val uploads = ConcurrentHashMap<Long, PendingUpload>()      // temporary message id -> waiting upload
-    private val uploadFiles = ConcurrentHashMap<Int, Long>()            // TDLib file id -> temporary message id
-
-    private fun onFileUpdate(f: TdApi.File) {
-        val temp = uploadFiles[f.id] ?: return
-        val p = uploads[temp] ?: return
-        val total = f.size.toLong().takeIf { it > 0 } ?: f.expectedSize.toLong()
-        if (total > 0) p.onProgress((f.remote.uploadedSize.toLong().toFloat() / total).coerceIn(0f, 1f))
-    }
-
-    /**
-     * Sends a local file to the storage channel as an original-quality document and waits until Telegram has
-     * really accepted it. Cancelling the coroutine cancels the upload (the pending message is deleted).
-     */
-    suspend fun uploadDocument(chatId: Long, path: String, caption: String, onProgress: (Float) -> Unit): TdApi.Message =
-        suspendCancellableCoroutine { cont ->
-            val c = client
-            if (c == null) {
-                cont.resumeWithException(TgUploadException("Telegram is not running.", false))
-                return@suspendCancellableCoroutine
-            }
-            val input = TdApi.InputFileLocal()
-            input.path = path
-            val cap = TdApi.FormattedText()
-            cap.text = caption
-            cap.entities = emptyArray<TdApi.TextEntity>()
-            val doc = TdApi.InputMessageDocument()
-            doc.document = input
-            doc.caption = cap
-            doc.disableContentTypeDetection = true   // keep photos as untouched originals
-            val q = TdApi.SendMessage()
-            q.chatId = chatId
-            q.inputMessageContent = doc
-            c.send(q) { r ->
-                when (r) {
-                    is TdApi.Message -> {
-                        val fid = (r.content as? TdApi.MessageDocument)?.document?.document?.id
-                        uploads[r.id] = PendingUpload(onProgress, cont)
-                        if (fid != null) uploadFiles[fid] = r.id
-                        cont.invokeOnCancellation {
-                            uploads.remove(r.id)
-                            uploadFiles.values.remove(r.id)
-                            val d = TdApi.DeleteMessages()
-                            d.chatId = chatId
-                            d.messageIds = longArrayOf(r.id)
-                            d.revoke = true
-                            client?.send(d) { }
-                        }
-                    }
-                    is TdApi.Error -> if (cont.isActive) {
-                        // Errors with code 400 mean the request itself is wrong (retrying cannot help).
-                        cont.resumeWithException(TgUploadException(r.message ?: "Telegram error", r.code == 400))
-                    }
-                    else -> if (cont.isActive) cont.resumeWithException(TgUploadException("Unexpected Telegram answer.", false))
-                }
-            }
-        }
-
-    /** Reads a message back from Telegram (used to double-check an upload really exists). */
-    suspend fun fetchMessage(chatId: Long, messageId: Long): TdApi.Message? =
-        suspendCancellableCoroutine { cont ->
-            val c = client
-            if (c == null) { cont.resume(null); return@suspendCancellableCoroutine }
-            val q = TdApi.GetMessage()
-            q.chatId = chatId
-            q.messageId = messageId
-            c.send(q) { r -> if (cont.isActive) cont.resume(r as? TdApi.Message) }
-        }
 
     private fun handleAuth(state: TdApi.AuthorizationState) {
         _busy.value = false
@@ -370,6 +294,71 @@ class TelegramClient private constructor(private val app: Context) {
     private fun problem(o: TdApi.Object) {
         val m = if (o is TdApi.Error) (o.message ?: "") else ""
         _status.value = StorageStatus.Problem(app.getString(R.string.tg_problem_unreachable, m))
+    }
+
+    private suspend fun sendAndWait(q: TdApi.Function<*>): TdApi.Object? {
+        val c = client ?: return null
+        return suspendCancellableCoroutine<TdApi.Object?> { cont ->
+            c.send(q) { r -> if (cont.isActive) cont.resume(r) }
+        }
+    }
+
+    /** Waits until Telegram is signed in and the storage channel is verified. */
+    suspend fun awaitUsable(timeoutMs: Long = 60_000): Boolean {
+        start()
+        val ready = withTimeoutOrNull(timeoutMs) { auth.first { it is TgAuth.Ready } } != null
+        if (!ready || storage.value == null) return false
+        if (_status.value is StorageStatus.Unknown) verifyStorage()
+        val r = withTimeoutOrNull(30_000L) { storageStatus.first { it is StorageStatus.Verified || it is StorageStatus.Problem } }
+        return r is StorageStatus.Verified
+    }
+
+    /** Uploads a local file as a DOCUMENT (original quality, no compression). Returns when Telegram confirms. */
+    suspend fun uploadDocument(chatId: Long, path: String, caption: String, onProgress: (Float) -> Unit): UploadResult {
+        val file = TdApi.InputFileLocal()
+        file.path = path
+        val text = TdApi.FormattedText()
+        text.text = caption
+        text.entities = emptyArray()
+        val content = TdApi.InputMessageDocument()
+        content.document = file
+        content.caption = text
+        content.disableContentTypeDetection = true
+        val req = TdApi.SendMessage()
+        req.chatId = chatId
+        req.inputMessageContent = content
+
+        val sent = sendAndWait(req) ?: return UploadResult.Failure(app.getString(R.string.bk_err_send_failed))
+        if (sent is TdApi.Error) return UploadResult.Failure(friendly(sent.message ?: ""))
+        val msg = sent as? TdApi.Message ?: return UploadResult.Failure(app.getString(R.string.bk_err_send_failed))
+        val temp = msg.id
+        val fileId = (msg.content as? TdApi.MessageDocument)?.document?.document?.id
+        if (fileId != null) progressByFile[fileId] = onProgress
+        val deferred = deferredFor(temp)
+        try {
+            return deferred.await()
+        } catch (e: CancellationException) {
+            // upload was interrupted: cancel the pending message so it is not sent twice later
+            val del = TdApi.DeleteMessages()
+            del.chatId = chatId
+            del.messageIds = longArrayOf(temp)
+            del.revoke = true
+            client?.send(del) { }
+            throw e
+        } finally {
+            sendResults.remove(temp)
+            if (fileId != null) progressByFile.remove(fileId)
+        }
+    }
+
+    /** Asks Telegram for the message back and checks the stored file has the expected size. */
+    suspend fun verifyMessage(chatId: Long, messageId: Long, expectedSize: Long): Boolean {
+        val q = TdApi.GetMessage()
+        q.chatId = chatId
+        q.messageId = messageId
+        val m = sendAndWait(q) as? TdApi.Message ?: return false
+        val f = (m.content as? TdApi.MessageDocument)?.document?.document ?: return false
+        return f.size == expectedSize || f.expectedSize == expectedSize
     }
 
     /** Removes the storage from this app only. The Telegram channel and its content are untouched. */

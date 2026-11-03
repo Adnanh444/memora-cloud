@@ -69,15 +69,14 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 }
 
 @Composable
-fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit) {
+fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit) {
     val ctx = LocalContext.current
+    val backupLabel = stringResource(if (com.adnan.memora.backup.BackupSettings.load(ctx).enabled) R.string.bk_on else R.string.bk_off)
     val tgAuth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
     val tgLabel = when (tgAuth) {
         is com.adnan.memora.telegram.TgAuth.Ready -> stringResource(R.string.tg_connected)
         else -> stringResource(R.string.tg_disconnected)
     }
-    val backup = com.adnan.memora.backup.BackupEngine.get(ctx)
-    val wifiOnly by backup.wifiOnly.collectAsState()
     var showTheme by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
     val night = Prefs.themeMode(ctx)
@@ -99,18 +98,7 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit) {
             color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp).appear(60))
         Column(Modifier.fillMaxWidth().appear(120).glass()) {
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
-            ListItem(
-                modifier = Modifier.clickable { backup.setWifiOnly(!wifiOnly) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = {
-                    Box(Modifier.size(42.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
-                        Icon(Icons.Filled.Wifi, null, tint = MaterialTheme.colorScheme.onPrimary)
-                    }
-                },
-                headlineContent = { Text(stringResource(R.string.wifi_only), fontWeight = FontWeight.Medium) },
-                supportingContent = { Text(stringResource(R.string.wifi_only_sub)) },
-                trailingContent = { Switch(checked = wifiOnly, onCheckedChange = { backup.setWifiOnly(it) }) },
-            )
+            SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), backupLabel, onBackup)
             SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)

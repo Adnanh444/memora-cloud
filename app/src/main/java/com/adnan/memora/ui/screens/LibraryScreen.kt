@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -92,18 +91,7 @@ fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenV
     val all by vm.all.collectAsState()
     val list = remember(all, name) { all.filter { it.bucket == name } }
     val selecting by vm.selecting.collectAsState()
-    val auto by vm.autoFolders.collectAsState()
-    var askAuto by remember { mutableStateOf(false) }
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
-    if (askAuto) AlertDialog(
-        onDismissRequest = { askAuto = false },
-        title = { Text(stringResource(R.string.auto_confirm_title, name)) },
-        text = { Text(stringResource(R.string.auto_confirm_body, list.size)) },
-        confirmButton = {
-            TextButton(onClick = { askAuto = false; vm.toggleAutoFolder(name) }) { Text(stringResource(R.string.auto_confirm_yes)) }
-        },
-        dismissButton = { TextButton(onClick = { askAuto = false }) { Text(stringResource(R.string.cancel)) } },
-    )
     if (list.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
         return
@@ -118,13 +106,6 @@ fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenV
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(stringResource(R.string.items_count, list.size), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                val on = name in auto
-                IconButton(onClick = { if (on) vm.toggleAutoFolder(name) else askAuto = true }) {
-                    Icon(
-                        Icons.Filled.CloudSync, stringResource(R.string.auto_backup),
-                        tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
         }
