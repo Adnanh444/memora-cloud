@@ -1,4 +1,5 @@
 # Changelog
+## 0.5.1 — Fix: upload for current TDLib
 ## 0.5.0 — Phase 4: Backup engine
 - Manual and automatic backup to the private Telegram channel (originals uploaded as documents, no compression).
 - Persistent queue, retry, pause/resume, Wi-Fi/charging rules, new-media detection, progress notification.

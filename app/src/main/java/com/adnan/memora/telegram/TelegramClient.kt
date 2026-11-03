@@ -320,10 +320,13 @@ class TelegramClient private constructor(private val app: Context) {
         val text = TdApi.FormattedText()
         text.text = caption
         text.entities = emptyArray()
+        // Current TDLib wraps the file in an InputDocument that carries the "send as file" flag.
+        val inputDocument = TdApi.InputDocument()
+        inputDocument.document = file
+        inputDocument.disableContentTypeDetection = true
         val content = TdApi.InputMessageDocument()
-        content.document = file
+        content.document = inputDocument
         content.caption = text
-        content.disableContentTypeDetection = true
         val req = TdApi.SendMessage()
         req.chatId = chatId
         req.inputMessageContent = content
