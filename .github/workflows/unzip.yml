@@ -10,6 +10,7 @@ jobs:
       - run: |
           unzip -o 'memora-cloud-*.zip'
           rm -rf memora-cloud/.github
+          rm -rf app/src
           cp -r memora-cloud/. .
           rm -rf memora-cloud memora-cloud-*.zip
           git config user.name "github-actions"
