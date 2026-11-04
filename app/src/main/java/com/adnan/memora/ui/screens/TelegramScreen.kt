@@ -37,7 +37,7 @@ import com.adnan.memora.ui.theme.glass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TelegramScreen(onBack: () -> Unit) {
+fun TelegramScreen(onBack: () -> Unit, onRecover: () -> Unit) {
     val ctx = LocalContext.current
     val tg = remember { TelegramClient.get(ctx) }
     val auth by tg.auth.collectAsState()
@@ -129,6 +129,9 @@ fun TelegramScreen(onBack: () -> Unit) {
                             Button(onClick = { confirmCreate = true }, enabled = !busy && me != null, modifier = Modifier.fillMaxWidth()) {
                                 Text(stringResource(R.string.tg_create))
                             }
+                            OutlinedButton(onClick = onRecover, enabled = !busy && me != null, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.rc_restore_existing))
+                            }
                         }
                     } else {
                         Column(Modifier.fillMaxWidth().appear(80).glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -149,6 +152,9 @@ fun TelegramScreen(onBack: () -> Unit) {
                                     Icon(Icons.Filled.Refresh, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.tg_verify_access))
                                 }
                                 TextButton(onClick = { confirmForget = true }) { Text(stringResource(R.string.tg_forget)) }
+                            }
+                            TextButton(onClick = { com.adnan.memora.backup.RecoveryEngine.rebuildCurrent(ctx); onRecover() }) {
+                                Text(stringResource(R.string.rc_rebuild))
                             }
                         }
                     }

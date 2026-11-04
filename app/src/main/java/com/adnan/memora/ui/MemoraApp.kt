@@ -115,7 +115,18 @@ fun MemoraApp() {
                 composable("backup") {
                     BackupScreen(gallery, onBack = { nav.popBackStack() }, onOpenTelegram = { nav.navigate("telegram") })
                 }
-                composable("telegram") { TelegramScreen(onBack = { nav.popBackStack() }) }
+                composable("telegram") { TelegramScreen(onBack = { nav.popBackStack() }, onRecover = { nav.navigate("recovery") }) }
+                composable("recovery") {
+                    RecoveryScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenCloud = {
+                            nav.navigate(Tab.Cloud.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true; restoreState = true
+                            }
+                        },
+                    )
+                }
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
                 composable("viewer") { ViewerScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("search") {

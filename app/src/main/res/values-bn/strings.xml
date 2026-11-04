@@ -223,4 +223,25 @@
     <string name="tg_show_details">সংযোগের বিস্তারিত দেখান</string>
     <string name="tg_reveal_desc">সংযোগের বিস্তারিত দেখতে নিশ্চিত করুন যে এটি আপনি</string>
     <string name="tg_need_lock">এই তথ্য দেখতে ফোনে স্ক্রিন লক সেট করুন</string>
+    <string name="rc_title">বিদ্যমান ব্যাকআপ ফিরিয়ে আনুন</string>
+    <string name="rc_restore_existing">বিদ্যমান ব্যাকআপ ফিরিয়ে আনুন</string>
+    <string name="rc_rebuild">ক্লাউড থেকে লাইব্রেরি আবার তৈরি করুন</string>
+    <string name="rc_intro">অ্যাপ আবার ইনস্টল করার পর বা ফোন বদলালে এটি ব্যবহার করুন। আপনি Telegram-এ সাইন ইন করা আছেন, তাই Memora আপনার প্রাইভেট ব্যাকআপ স্টোরেজ খুঁজে তা থেকে আপনার ক্লাউড লাইব্রেরি আবার তৈরি করবে।</string>
+    <string name="rc_limits">জেনে রাখুন: একই Telegram অ্যাকাউন্ট ব্যবহার করতে হবে (টু-স্টেপ পাসওয়ার্ড লাগতে পারে)। স্টোরেজ চ্যানেল মুছে গেলে বা অ্যাক্সেস হারালে তা ফেরানো যাবে না। যে ছবি কখনো ব্যাকআপ হয়নি তা ফেরানো যাবে না। Telegram থেকে স্থায়ীভাবে মুছে যাওয়া মেসেজ ফেরানো যাবে না। স্টোরেজে অ্যাক্সেস যাচাই হওয়ার পরই রিকভারি সফল বলা হয়।</string>
+    <string name="rc_find">আমার ব্যাকআপ খুঁজুন</string>
+    <string name="rc_searching">আপনার ব্যাকআপ স্টোরেজ খোঁজা হচ্ছে…</string>
+    <string name="rc_none">এই Telegram অ্যাকাউন্টে কোনো Memora ব্যাকআপ স্টোরেজ পাওয়া যায়নি। যে অ্যাকাউন্টে ব্যাকআপ করা হয়েছিল সেটিতেই সাইন ইন করেছেন কিনা দেখুন।</string>
+    <string name="rc_choose">ফিরিয়ে আনার ব্যাকআপ স্টোরেজ বেছে নিন:</string>
+    <string name="rc_candidate">ব্যাকআপ স্টোরেজ · আইডি %1$s</string>
+    <string name="rc_restore">এই ব্যাকআপ ফিরিয়ে আনুন</string>
+    <string name="rc_scanning">আপনার ক্লাউড লাইব্রেরি পড়া হচ্ছে… %1$dটি ফাইল পাওয়া গেছে</string>
+    <string name="rc_matching">এই ফোনের ছবির সঙ্গে মিলানো হচ্ছে… %2$d এর মধ্যে %1$d</string>
+    <string name="rc_done_title">রিকভারি সম্পূর্ণ</string>
+    <string name="rc_done_body">%1$dটি ফাইল আপনার ক্লাউড লাইব্রেরিতে ফেরানো হয়েছে। এই ফোনের %2$dটি ছবি ব্যাকআপ করা আছে বলে চেনা গেছে, তাই সেগুলো আবার আপলোড হবে না।</string>
+    <string name="rc_failed">রিকভারি শেষ হয়নি: %1$s</string>
+    <string name="rc_failed_generic">স্টোরেজ পড়ার সময় কিছু ভুল হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
+    <string name="rc_err_signin">আগে Telegram-এ সাইন ইন করুন।</string>
+    <string name="rc_err_verify">স্টোরেজ চ্যানেলে অ্যাক্সেস যাচাই করা যায়নি।</string>
+    <string name="rc_open_cloud">ক্লাউড লাইব্রেরি খুলুন</string>
+    <string name="rc_again">আবার চেষ্টা করুন</string>
 </resources>

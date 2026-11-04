@@ -223,4 +223,25 @@
     <string name="tg_show_details">Show connection details</string>
     <string name="tg_reveal_desc">Confirm it is you to see the connection details</string>
     <string name="tg_need_lock">Set a screen lock on your phone to view these details</string>
+    <string name="rc_title">Restore existing backup</string>
+    <string name="rc_restore_existing">Restore existing backup</string>
+    <string name="rc_rebuild">Rebuild library from the cloud</string>
+    <string name="rc_intro">Use this after reinstalling Memora or changing phones. You are signed in to Telegram, so Memora will look for your private backup storage and rebuild your Cloud library from it.</string>
+    <string name="rc_limits">Good to know: you must use the same Telegram account (its two-step password may be needed). If the storage channel was deleted or you lost access to it, it cannot be recovered. Photos that were never backed up cannot be restored. Messages permanently deleted from Telegram cannot be recovered. Recovery is only reported as successful after Memora has verified access to the storage.</string>
+    <string name="rc_find">Find my backup</string>
+    <string name="rc_searching">Looking for your backup storage…</string>
+    <string name="rc_none">No Memora backup storage was found in this Telegram account. Check that you signed in with the same account the backup was made with.</string>
+    <string name="rc_choose">Choose the backup storage to restore:</string>
+    <string name="rc_candidate">Backup storage · ID %1$s</string>
+    <string name="rc_restore">Restore this backup</string>
+    <string name="rc_scanning">Reading your cloud library… %1$d files found</string>
+    <string name="rc_matching">Comparing with photos on this phone… %1$d of %2$d</string>
+    <string name="rc_done_title">Restore complete</string>
+    <string name="rc_done_body">%1$d files were restored to your Cloud library. %2$d photos already on this phone were recognised as backed up, so they will not be uploaded again.</string>
+    <string name="rc_failed">Restore did not finish: %1$s</string>
+    <string name="rc_failed_generic">Something went wrong while reading the storage. Please try again.</string>
+    <string name="rc_err_signin">Sign in to Telegram first.</string>
+    <string name="rc_err_verify">Could not verify access to the storage channel.</string>
+    <string name="rc_open_cloud">Open Cloud library</string>
+    <string name="rc_again">Try again</string>
 </resources>

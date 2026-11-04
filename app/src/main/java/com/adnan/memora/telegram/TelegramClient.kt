@@ -6,6 +6,11 @@ import com.adnan.memora.BuildConfig
 import com.adnan.memora.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -41,6 +46,14 @@ sealed class UploadResult {
     class Failure(val message: String) : UploadResult()
 }
 
+/** A file found in the storage channel while rebuilding the cloud library. */
+class CloudDoc(
+    val chatId: Long, val messageId: Long, val name: String, val mime: String, val size: Long,
+    val sha: String?, val takenMs: Long, val dateMs: Long,
+)
+
+class StorageCandidate(val chatId: Long, val storageId: String, val title: String)
+
 class ThumbInfo(val path: String, val width: Int, val height: Int)
 
 class TgUser(val id: Long, val name: String, val phone: String)
@@ -70,6 +83,7 @@ class TelegramClient private constructor(private val app: Context) {
     val error: StateFlow<String?> = _error
 
     private var client: Client? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     fun clearError() { _error.value = null }
 
@@ -258,6 +272,7 @@ class TelegramClient private constructor(private val app: Context) {
                 _storage.value = cfg
                 _busy.value = false
                 verifyStorage()
+                scope.launch { writeSavedMarker(r.id, storageId) }
             } else if (r is TdApi.Error) fail(r)
         }
     }
@@ -449,6 +464,153 @@ class TelegramClient private constructor(private val app: Context) {
         q.messageIds = ids.toLongArray()
         q.revoke = true
         return sendAndWait(q) is TdApi.Ok
+    }
+
+    // ---------- recovery: find the storage again and read the library back ----------
+
+    suspend fun awaitSignedIn(timeoutMs: Long = 60_000): Boolean {
+        start()
+        val ready = withTimeoutOrNull(timeoutMs) { auth.first { it is TgAuth.Ready } } != null
+        if (!ready) return false
+        return withTimeoutOrNull(30_000L) { me.first { it != null } } != null
+    }
+
+    private suspend fun savedChatId(): Long? {
+        val uid = _me.value?.id ?: return null
+        val q = TdApi.CreatePrivateChat()
+        q.userId = uid
+        q.force = true
+        return (sendAndWait(q) as? TdApi.Chat)?.id
+    }
+
+    /** A small note in the user's own Saved Messages that points to the storage channel (helps recovery find it). */
+    suspend fun writeSavedMarker(chatId: Long, storageId: String) {
+        val saved = savedChatId() ?: return
+        val ft = TdApi.FormattedText()
+        ft.text = "MEMORA_CLOUD_MARKER v1 id=$storageId chat=$chatId"
+        ft.entities = emptyArray()
+        val content = TdApi.InputMessageText()
+        content.text = ft
+        val m = TdApi.SendMessage()
+        m.chatId = saved
+        m.inputMessageContent = content
+        sendAndWait(m)
+    }
+
+    /** Looks for the user's Memora storage channel(s): Saved Messages notes first, then a search by name. */
+    suspend fun findStorageCandidates(): List<StorageCandidate> {
+        val uid = _me.value?.id ?: return emptyList()
+        val ids = LinkedHashSet<Long>()
+
+        val saved = savedChatId()
+        if (saved != null) {
+            var from = 0L
+            for (page in 0 until 10) {
+                val q = TdApi.GetChatHistory()
+                q.chatId = saved
+                q.fromMessageId = from
+                q.offset = 0
+                q.limit = 100
+                q.onlyLocal = false
+                val msgs = (sendAndWait(q) as? TdApi.Messages)?.messages ?: emptyArray()
+                if (msgs.isEmpty()) break
+                for (m in msgs) {
+                    val t = (m.content as? TdApi.MessageText)?.text?.text ?: continue
+                    Regex("MEMORA_CLOUD_MARKER v1 id=\\S+ chat=(-?\\d+)").find(t)?.groupValues?.get(1)?.toLongOrNull()?.let { ids.add(it) }
+                }
+                val next = msgs.minOf { it.id }
+                if (next == from) break
+                from = next
+            }
+        }
+        val local = TdApi.SearchChats()
+        local.query = "Memora"
+        local.limit = 50
+        (sendAndWait(local) as? TdApi.Chats)?.chatIds?.forEach { ids.add(it) }
+        val server = TdApi.SearchChatsOnServer()
+        server.query = "Memora"
+        server.limit = 50
+        (sendAndWait(server) as? TdApi.Chats)?.chatIds?.forEach { ids.add(it) }
+
+        val out = ArrayList<StorageCandidate>()
+        for (id in ids) {
+            val getChat = TdApi.GetChat()
+            getChat.chatId = id
+            val chat = sendAndWait(getChat) as? TdApi.Chat ?: continue
+            val type = chat.type as? TdApi.ChatTypeSupergroup ?: continue
+            if (!type.isChannel) continue
+            val sender = TdApi.MessageSenderUser()
+            sender.userId = uid
+            val getMember = TdApi.GetChatMember()
+            getMember.chatId = id
+            getMember.memberId = sender
+            val member = sendAndWait(getMember) as? TdApi.ChatMember ?: continue
+            val st = member.status
+            if (st !is TdApi.ChatMemberStatusCreator && st !is TdApi.ChatMemberStatusAdministrator) continue
+            val getFull = TdApi.GetSupergroupFullInfo()
+            getFull.supergroupId = type.supergroupId
+            val full = sendAndWait(getFull) as? TdApi.SupergroupFullInfo ?: continue
+            val m = Regex("MEMORA_CLOUD v1 id=([0-9a-fA-F-]{36})").find(full.description ?: "") ?: continue
+            if (out.none { it.chatId == id }) out.add(StorageCandidate(id, m.groupValues[1], chat.title ?: ""))
+        }
+        return out
+    }
+
+    /** Use an existing storage channel (found during recovery) as this phone's storage. */
+    fun adoptStorage(c: StorageCandidate) {
+        val cfg = StorageConfig(c.chatId, c.storageId, c.title, System.currentTimeMillis())
+        StorageStore.save(app, cfg)
+        _storage.value = cfg
+        verifyStorage()
+    }
+
+    private fun parseDoc(chatId: Long, m: TdApi.Message): CloudDoc? {
+        val c = m.content as? TdApi.MessageDocument ?: return null
+        val cap = c.caption?.text ?: ""
+        if (!cap.startsWith("memora:v1")) return null
+        val sha = Regex("sha256=([0-9a-fA-F]{64})").find(cap)?.groupValues?.get(1)?.lowercase()
+        val taken = Regex("taken=(\\d+)").find(cap)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        val d = c.document
+        val dateMs = m.date * 1000L
+        return CloudDoc(
+            chatId, m.id, d.fileName ?: "file", d.mimeType ?: "application/octet-stream", d.document.size,
+            sha, if (taken > 0) taken else dateMs, dateMs,
+        )
+    }
+
+    /** Reads the whole channel history and returns every Memora file in it (newest first). */
+    suspend fun scanHistory(chatId: Long, onProgress: (Int) -> Unit): List<CloudDoc> {
+        val out = LinkedHashMap<Long, CloudDoc>()
+        val seen = HashSet<Long>()
+        var from = 0L
+        var stagnant = 0
+        while (true) {
+            val q = TdApi.GetChatHistory()
+            q.chatId = chatId
+            q.fromMessageId = from
+            q.offset = 0
+            q.limit = 100
+            q.onlyLocal = false
+            val r = sendAndWait(q) as? TdApi.Messages ?: break
+            val msgs = r.messages ?: emptyArray()
+            if (msgs.isEmpty()) break
+            var added = 0
+            for (m in msgs) {
+                if (!seen.add(m.id)) continue
+                added++
+                parseDoc(chatId, m)?.let { out[m.id] = it }
+            }
+            onProgress(out.size)
+            if (added == 0) {
+                stagnant++
+                if (stagnant >= 5) break
+                delay(400)
+            } else {
+                stagnant = 0
+                from = msgs.minOf { it.id }
+            }
+        }
+        return out.values.toList()
     }
 
     /** Removes the storage from this app only. The Telegram channel and its content are untouched. */

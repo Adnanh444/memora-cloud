@@ -1,4 +1,9 @@
 # Changelog
+## 0.8.0 — Phase 7: Recovery
+- Restore existing backup: finds your private storage in the signed-in Telegram account and rebuilds the Cloud library from the channel.
+- Photos already on the new phone are recognised by SHA-256 and never uploaded again.
+- New uploads record their date taken so restored items keep their timeline.
+- Rebuild-from-cloud button; limitations explained on screen.
 ## 0.7.0 — Phase 6: Cloud + Google Photos style
 - Cloud tab: browse backed-up photos/videos with previews from the cloud; originals stay off the phone unless you tap Download.
 - In-app cloud photo zoom and video playback from a temporary private cache (auto-removed).

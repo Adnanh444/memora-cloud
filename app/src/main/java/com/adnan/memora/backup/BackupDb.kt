@@ -77,6 +77,12 @@ interface BackupDao {
     @Query("UPDATE backup_entries SET state = 'QUEUED', attempts = 0, error = NULL WHERE state = 'FAILED' AND uri IN (:uris)")
     suspend fun requeue(uris: List<String>)
 
+    @Query("SELECT * FROM backup_entries")
+    suspend fun all(): List<BackupEntry>
+
+    @Query("SELECT * FROM backup_entries WHERE state = 'VERIFIED' AND uri LIKE 'cloud:%'")
+    suspend fun cloudEntries(): List<BackupEntry>
+
     @Query("SELECT * FROM backup_entries WHERE uri IN (:uris)")
     suspend fun getMany(uris: List<String>): List<BackupEntry>
 

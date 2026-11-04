@@ -101,6 +101,7 @@ object BackupEngine {
         var currentProgress = 0f
         for (e in entries) {
             if (e.state == BackupEntry.ST_TRASHED || e.state == BackupEntry.ST_DELETED) continue
+            if (e.uri.startsWith("cloud:")) continue // restored from the cloud, not a file of this phone
             total++
             val isLive = lv != null && lv.first == e.uri
             val item = when (e.state) {
@@ -182,6 +183,8 @@ object BackupEngine {
         if (!cfg.enabled) return@withContext 0
         val dao = BackupDb.get(ctx).dao()
         val media = MediaRepository(ctx).loadAll()
+        // photos already in the cloud (e.g. after a restore) are recognised by content and never uploaded again
+        RecoveryEngine.matchLocal(ctx, media)
         val existing = dao.allKeys().toHashSet()
         val fresh = media.filter { m -> m.key !in existing && isEligible(cfg, m.isVideo, m.bucket) }.map { it.toEntry() }
         if (fresh.isNotEmpty()) dao.insertAll(fresh)
@@ -338,7 +341,7 @@ object BackupEngine {
             val thumb = if (dims != null) ThumbInfo(thumbFile.absolutePath, dims.first, dims.second) else null
 
             var lastReported = 0f
-            val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha", thumb) { p ->
+            val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha taken=${e.dateTaken}", thumb) { p ->
                 if (p - lastReported >= 0.05f || p >= 1f) { lastReported = p; live.value = e.uri to p }
             }
             val now = System.currentTimeMillis()
