@@ -67,6 +67,22 @@ object SecureKeys {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("api_cred").apply()
     }
 
+    /** Key of the encrypted favorites/albums file. Stored encrypted on this phone. */
+    fun metaKey(ctx: Context): ByteArray {
+        val sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val s = sp.getString("meta_key", null)
+        if (s != null) {
+            try { return decrypt(s) } catch (_: Exception) { /* regenerate below */ }
+        }
+        val k = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        sp.edit().putString("meta_key", encrypt(k)).apply()
+        return k
+    }
+
+    fun setMetaKey(ctx: Context, key: ByteArray) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("meta_key", encrypt(key)).apply()
+    }
+
     fun databaseKey(ctx: Context): ByteArray {
         val sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val stored = sp.getString(ENTRY, null)

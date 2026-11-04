@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,10 +30,27 @@ import com.adnan.memora.ui.theme.brandBrush
 import com.adnan.memora.ui.theme.glass
 
 @Composable
-fun LibraryScreen(vm: GalleryViewModel, onFolder: (String) -> Unit, onBin: () -> Unit, onCloudBin: () -> Unit) {
+fun LibraryScreen(
+    vm: GalleryViewModel,
+    onFolder: (String) -> Unit,
+    onBin: () -> Unit,
+    onCloudBin: () -> Unit,
+    onFavorites: () -> Unit,
+    onArchive: () -> Unit,
+    onAlbum: (String) -> Unit,
+    onFreeUp: () -> Unit,
+) {
     val folders by vm.folders.collectAsState()
     val trash by vm.trash.collectAsState()
     val cloudTrash by vm.cloudTrash.collectAsState()
+    val albums by vm.albumSummaries.collectAsState()
+    val favs by vm.favoriteMedia.collectAsState()
+    val arch by vm.archiveMedia.collectAsState()
+    var newAlbum by remember { mutableStateOf(false) }
+    if (newAlbum) AlbumNameSheet(
+        title = stringResource(R.string.og_new_album), initial = "", action = stringResource(R.string.og_create),
+        onConfirm = { vm.createAlbum(it) }, onDismiss = { newAlbum = false },
+    )
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         GradientTitle(stringResource(R.string.nav_library), Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
         LazyVerticalGrid(
@@ -42,42 +59,76 @@ fun LibraryScreen(vm: GalleryViewModel, onFolder: (String) -> Unit, onBin: () ->
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.og_collections)) }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                LibraryRow(Icons.Filled.Favorite, stringResource(R.string.og_favorites), stringResource(R.string.items_count, favs.size), onFavorites)
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                LibraryRow(Icons.Filled.Archive, stringResource(R.string.og_archive), stringResource(R.string.items_count, arch.size), onArchive)
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.og_albums)) }
+            item {
+                Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable { newAlbum = true }) {
+                    Box(
+                        Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                        Alignment.Center,
+                    ) { Icon(Icons.Filled.Add, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary) }
+                    Text(stringResource(R.string.og_new_album), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                }
+            }
+            items(albums, key = { "album:" + it.id }) { al ->
+                Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable { onAlbum(al.id) }) {
+                    Box(
+                        Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                        Alignment.Center,
+                    ) {
+                        if (al.cover != null) {
+                            AsyncImage(model = al.cover.uri, contentDescription = al.name, contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize())
+                        } else {
+                            Icon(Icons.Filled.PhotoAlbum, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text(al.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                    Text(stringResource(R.string.items_count, al.count), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.utilities)) }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                LibraryRow(Icons.Filled.DeleteSweep, stringResource(R.string.fu_title), stringResource(R.string.fu_sub), onFreeUp)
+            }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 val sub = if (Build.VERSION.SDK_INT >= 30) stringResource(R.string.bin_sub, trash.size)
                 else stringResource(R.string.bin_need_r)
-                Row(
-                    Modifier.fillMaxWidth().glass().clickable(onClick = onBin).padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
-                        Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(stringResource(R.string.bin), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+                LibraryRow(Icons.Filled.Delete, stringResource(R.string.bin), sub, onBin)
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Row(
-                    Modifier.fillMaxWidth().glass().clickable(onClick = onCloudBin).padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
-                        Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(stringResource(R.string.cl_bin), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(R.string.cl_bin_sub, cloudTrash.size), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+                LibraryRow(Icons.Filled.CloudQueue, stringResource(R.string.cl_bin), stringResource(R.string.cl_bin_sub, cloudTrash.size), onCloudBin)
             }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.folders_section)) }
             items(folders, key = { it.name }) { f -> FolderCard(f) { onFolder(f.name) } }
+        }
+    }
+}
+
+@Composable
+private fun LibraryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().glass().clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

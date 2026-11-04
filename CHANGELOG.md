@@ -1,4 +1,8 @@
 # Changelog
+## 0.9.0 — Phase 8 (part 1): Organization
+- Favorites, Archive and Albums (identified by SHA-256, so they follow your photos to a new phone).
+- Free Up Space: removes phone copies only after each one is re-verified with the cloud.
+- Favorites/archive/albums are saved in the cloud as one encrypted file and restored with the library.
 ## 0.8.0 — Phase 7: Recovery
 - Restore existing backup: finds your private storage in the signed-in Telegram account and rebuilds the Cloud library from the channel.
 - Photos already on the new phone are recognised by SHA-256 and never uploaded again.

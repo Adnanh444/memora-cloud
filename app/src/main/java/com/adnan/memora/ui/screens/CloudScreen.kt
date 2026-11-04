@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: () -> Unit) {
     val ctx = LocalContext.current
-    val items by vm.cloudMedia.collectAsState()
+    val items by vm.cloudFeed.collectAsState()
     val selecting by vm.selecting.collectAsState()
     val dl by CloudDownloader.state.collectAsState()
     val status by remember { TelegramClient.get(ctx) }.storageStatus.collectAsState()
@@ -125,5 +125,6 @@ fun CloudSelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
         IconButton(onClick = { confirm = true }, enabled = selection.isNotEmpty()) {
             Icon(Icons.Filled.Delete, stringResource(R.string.delete))
         }
+        OrgMenu(vm, enabled = selection.isNotEmpty(), onDone = { vm.clearSelection() }, pickItems = { vm.selectedAny() })
     }
 }

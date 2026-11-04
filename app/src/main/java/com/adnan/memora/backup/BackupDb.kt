@@ -42,6 +42,9 @@ data class BackupEntry(
 @Entity(tableName = "hash_cache")
 data class HashCacheEntry(@PrimaryKey val uri: String, val size: Long, val modified: Long, val sha256: String)
 
+/** One known fingerprint: used to recognise the same photo on any phone. */
+data class ShaRow(val uri: String, val sha256: String)
+
 @Dao
 interface BackupDao {
     @Query("SELECT * FROM backup_entries")
@@ -76,6 +79,9 @@ interface BackupDao {
 
     @Query("UPDATE backup_entries SET state = 'QUEUED', attempts = 0, error = NULL WHERE state = 'FAILED' AND uri IN (:uris)")
     suspend fun requeue(uris: List<String>)
+
+    @Query("SELECT uri, sha256 FROM hash_cache UNION SELECT uri, sha256 FROM backup_entries WHERE sha256 IS NOT NULL")
+    fun observeShaRows(): Flow<List<ShaRow>>
 
     @Query("SELECT * FROM backup_entries")
     suspend fun all(): List<BackupEntry>

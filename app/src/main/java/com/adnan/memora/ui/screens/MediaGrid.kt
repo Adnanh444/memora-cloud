@@ -374,5 +374,6 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
         IconButton(onClick = { confirm = true }, enabled = selection.isNotEmpty()) {
             Icon(Icons.Filled.Delete, stringResource(R.string.delete))
         }
+        OrgMenu(vm, enabled = selection.isNotEmpty(), onDone = { vm.clearSelection() }, pickItems = { vm.selectedAny() })
     }
 }

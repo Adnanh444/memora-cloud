@@ -2,6 +2,7 @@ package com.adnan.memora.telegram
 
 import android.content.Context
 import android.os.Build
+import android.util.Base64
 import com.adnan.memora.BuildConfig
 import com.adnan.memora.R
 import kotlinx.coroutines.CancellationException
@@ -495,6 +496,78 @@ class TelegramClient private constructor(private val app: Context) {
         m.chatId = saved
         m.inputMessageContent = content
         sendAndWait(m)
+    }
+
+    suspend fun savedChat(): Long? = savedChatId()
+
+    private suspend fun historyPage(chatId: Long, from: Long): Array<TdApi.Message> {
+        val q = TdApi.GetChatHistory()
+        q.chatId = chatId
+        q.fromMessageId = from
+        q.offset = 0
+        q.limit = 100
+        q.onlyLocal = false
+        return (sendAndWait(q) as? TdApi.Messages)?.messages ?: emptyArray()
+    }
+
+    /** Writes the key of the encrypted metadata file into the user's own Saved Messages (once per storage). */
+    suspend fun ensureKeyNote(storageId: String, key: ByteArray) {
+        val flag = "key_note_$storageId"
+        if (cachePrefs().getBoolean(flag, false)) return
+        val saved = savedChatId() ?: return
+        val ft = TdApi.FormattedText()
+        ft.text = "MEMORA_CLOUD_KEY v1 id=$storageId key=" + Base64.encodeToString(key, Base64.NO_WRAP)
+        ft.entities = emptyArray()
+        val content = TdApi.InputMessageText()
+        content.text = ft
+        val m = TdApi.SendMessage()
+        m.chatId = saved
+        m.inputMessageContent = content
+        if (sendAndWait(m) is TdApi.Message) cachePrefs().edit().putBoolean(flag, true).apply()
+    }
+
+    suspend fun findKeyNote(storageId: String): ByteArray? {
+        val saved = savedChatId() ?: return null
+        val rx = Regex("MEMORA_CLOUD_KEY v1 id=" + Regex.escape(storageId) + " key=([A-Za-z0-9+/=]+)")
+        var from = 0L
+        for (page in 0 until 15) {
+            val msgs = historyPage(saved, from)
+            if (msgs.isEmpty()) break
+            for (m in msgs) {
+                val t = (m.content as? TdApi.MessageText)?.text?.text ?: continue
+                val g = rx.find(t)?.groupValues?.get(1) ?: continue
+                return try { Base64.decode(g, Base64.NO_WRAP) } catch (_: Exception) { null }
+            }
+            val next = msgs.minOf { it.id }
+            if (next == from) break
+            from = next
+        }
+        return null
+    }
+
+    /** File id of the newest encrypted metadata file in the storage channel. */
+    suspend fun findLatestMeta(chatId: Long): Int? {
+        var from = 0L
+        for (page in 0 until 40) {
+            val msgs = historyPage(chatId, from)
+            if (msgs.isEmpty()) break
+            for (m in msgs.sortedByDescending { it.id }) {
+                val c = m.content as? TdApi.MessageDocument ?: continue
+                if (c.caption?.text?.startsWith("memora:meta:v1") == true) return c.document.document.id
+            }
+            val next = msgs.minOf { it.id }
+            if (next == from) break
+            from = next
+        }
+        return null
+    }
+
+    suspend fun downloadFile(fileId: Int): String? = downloadSync(fileId)
+
+    fun deleteFile(fileId: Int) {
+        val d = TdApi.DeleteFile()
+        d.fileId = fileId
+        client?.send(d) { }
     }
 
     /** Looks for the user's Memora storage channel(s): Saved Messages notes first, then a search by name. */

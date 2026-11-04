@@ -77,6 +77,8 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     val items by vm.viewerItems.collectAsState()
     val backup by vm.itemBackup.collectAsState()
     val summary by vm.backupSummary.collectAsState()
+    val favs by vm.favoriteShas.collectAsState()
+    val shaIdx by vm.shaIndex.collectAsState()
     if (items.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
         return
@@ -175,8 +177,19 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                 if (isCloud || summary.phase != BackupPhase.NOT_SET_UP) {
                     val ok = isCloud || backup[current.key]?.state == BackupState.VERIFIED
                     Icon(if (ok) Icons.Filled.CloudDone else Icons.Filled.CloudOff, null, tint = Color.White,
-                        modifier = Modifier.padding(end = 16.dp))
+                        modifier = Modifier.padding(end = 8.dp))
                 }
+                val isFav = shaIdx[current.key]?.let { it in favs } == true
+                IconButton(
+                    onClick = { vm.setFavorite(listOf(current), !isFav) },
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                ) {
+                    Icon(
+                        if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        stringResource(if (isFav) R.string.og_unfavorite else R.string.og_favorite),
+                    )
+                }
+                OrgMenu(vm, tint = Color.White, pickItems = { listOf(current) })
             }
         }
 

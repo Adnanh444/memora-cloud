@@ -26,6 +26,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.adnan.memora.R
+import com.adnan.memora.gallery.CollectionKind
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.ui.screens.*
 import com.adnan.memora.ui.theme.AuroraBackground
@@ -101,6 +102,14 @@ fun MemoraApp() {
                         onFolder = { name -> gallery.openFolderName = name; nav.navigate("folder") },
                         onBin = { nav.navigate("bin") },
                         onCloudBin = { nav.navigate("cloudbin") },
+                        onFavorites = { gallery.collectionKind = CollectionKind.FAVORITES; nav.navigate("collection") },
+                        onArchive = { gallery.collectionKind = CollectionKind.ARCHIVE; nav.navigate("collection") },
+                        onAlbum = { id ->
+                            gallery.collectionKind = CollectionKind.ALBUM
+                            gallery.collectionAlbumId = id
+                            nav.navigate("collection")
+                        },
+                        onFreeUp = { nav.navigate("freeup") },
                     )
                 }
                 composable(Tab.Settings.route) {
@@ -136,6 +145,10 @@ fun MemoraApp() {
                     FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
                 }
                 composable("bin") { BinScreen(gallery, onBack = { nav.popBackStack() }) }
+                composable("collection") {
+                    CollectionScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
+                }
+                composable("freeup") { FreeUpScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("cloudbin") { CloudBinScreen(gallery, onBack = { nav.popBackStack() }) }
             }
         }

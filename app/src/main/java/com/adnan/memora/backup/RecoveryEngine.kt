@@ -121,6 +121,12 @@ object RecoveryEngine {
             _state.value = RecState.Matching(0, 0)
             val media = MediaRepository(app).loadAll()
             val matched = matchLocal(app, media) { done, total -> _state.value = RecState.Matching(done, total) }
+            try {
+                val storageId = tg.storage.value?.storageId
+                if (storageId != null) com.adnan.memora.org.MetaSync.restore(app, chatId, storageId)
+            } catch (_: Exception) {
+                // favorites/albums could not be read back; the photos themselves are restored
+            }
             _state.value = RecState.Done(entries.size, matched)
         } catch (t: Exception) {
             _state.value = RecState.Failed(app.getString(R.string.rc_failed_generic))
