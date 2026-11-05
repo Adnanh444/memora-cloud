@@ -14,6 +14,7 @@ data class LocalMedia(
     val durationMs: Long,
     val isVideo: Boolean,
     val bucket: String,       // folder name, e.g. Camera, Screenshots
+    val isFavorite: Boolean = false, // Android MediaStore flag, not a Memora-only favorite
 ) {
     val key: String get() = uri.toString()
 }

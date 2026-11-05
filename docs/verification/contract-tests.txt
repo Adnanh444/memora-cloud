@@ -1,0 +1,14 @@
+test_automatic_queue_never_resends_uncertain (__main__.QueueSafety.test_automatic_queue_never_resends_uncertain) ... ok
+test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded (__main__.QueueSafety.test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded) ... ok
+test_normal_retry_cannot_release_uncertain (__main__.QueueSafety.test_normal_retry_cannot_release_uncertain) ... ok
+test_only_bounded_known_failures_request_worker_retry (__main__.QueueSafety.test_only_bounded_known_failures_request_worker_retry) ... ok
+test_restart_only_resets_pre_send_uploading (__main__.QueueSafety.test_restart_only_resets_pre_send_uploading) ... ok
+test_uncertain_requires_its_explicit_release_query (__main__.QueueSafety.test_uncertain_requires_its_explicit_release_query) ... ok
+test_native_favorites_does_not_write_legacy_org_favorites (__main__.SourceContracts.test_native_favorites_does_not_write_legacy_org_favorites) ... ok
+test_no_special_media_management_permission (__main__.SourceContracts.test_no_special_media_management_permission) ... ok
+test_refresh_labels_are_localized (__main__.SourceContracts.test_refresh_labels_are_localized) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.020s
+
+OK

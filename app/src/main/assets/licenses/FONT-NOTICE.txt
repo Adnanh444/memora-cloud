@@ -1,0 +1,4 @@
+The bundled Memora Sans regular/semibold fonts are modified, static Latin subsets derived from Manrope.
+Original font copyright: Copyright 2019 The Manrope Project Authors (https://github.com/googlefonts/manrope).
+The original copyright/license metadata is retained in the font files. The full SIL Open Font License is included in Manrope-OFL.txt.
+The font family is renamed for this modified distribution. Bengali glyphs use Android's available fallback fonts.

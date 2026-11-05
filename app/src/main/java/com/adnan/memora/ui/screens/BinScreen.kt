@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -31,6 +33,7 @@ import coil.compose.AsyncImage
 import com.adnan.memora.R
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.gallery.TrashedMedia
+import com.adnan.memora.gallery.LocalMedia
 import com.adnan.memora.ui.theme.glass
 import kotlin.math.ceil
 
@@ -38,10 +41,20 @@ import kotlin.math.ceil
 fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     val trash by vm.trash.collectAsState()
     var selected by remember { mutableStateOf(setOf<String>()) }
+    var preview by remember { mutableStateOf<LocalMedia?>(null) }
+    val visibleKeys = trash.map { it.media.key }.toSet()
+    LaunchedEffect(visibleKeys) {
+        selected = BinSelection.retain(selected, visibleKeys)
+        if (preview?.key !in visibleKeys) preview = null
+    }
     var confirmForever by remember { mutableStateOf(false) }
     val bin = rememberBinActions(onDone = { selected = emptySet(); vm.refresh() })
     BackHandler(selected.isNotEmpty()) { selected = emptySet() }
     val chosen = trash.filter { it.media.key in selected }.map { it.media.uri }
+
+    preview?.let { item -> BinPreview(item, onDismiss = { preview = null }, onRestore = {
+        preview = null; bin.restore(listOf(item.uri))
+    }) }
 
     if (confirmForever) MemoraSheet(onDismiss = { confirmForever = false }) { close ->
         Text(stringResource(R.string.forever_title, selected.size), style = MaterialTheme.typography.titleLarge,
@@ -64,12 +77,21 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             }
             Text(
                 if (selected.isEmpty()) stringResource(R.string.bin) else stringResource(R.string.selected_count, selected.size),
-                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f),
             )
+            if (selected.size == 1) IconButton(onClick = { preview = trash.firstOrNull { it.media.key in selected }?.media }) {
+                Icon(Icons.Filled.Visibility, stringResource(R.string.ui_view_selected))
+            }
+            IconButton(enabled = trash.isNotEmpty(), onClick = { selected = BinSelection.toggleAll(selected, visibleKeys) }) {
+                Icon(if (selected.isNotEmpty() && selected.containsAll(visibleKeys)) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                    stringResource(if (selected.isNotEmpty() && selected.containsAll(visibleKeys)) R.string.ui_deselect_all else R.string.select_all))
+            }
         }
         Text(stringResource(R.string.bin_info), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
 
+        Text(stringResource(R.string.ui_bin_hint), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (Build.VERSION.SDK_INT < 30) {
                 Text(stringResource(R.string.bin_need_r), textAlign = TextAlign.Center,
@@ -82,16 +104,20 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     Text(stringResource(R.string.bin_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
+                PinchGrid("device-bin", Modifier.fillMaxSize()) { columns, gesture ->
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(104.dp),
+                    modifier = gesture,
+                    columns = GridCells.Fixed(columns),
                     contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = 90.dp, top = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     items(trash, key = { it.media.key }) { t ->
-                        BinCell(t, t.media.key in selected) {
-                            selected = if (t.media.key in selected) selected - t.media.key else selected + t.media.key
-                        }
+                        BinCell(t, t.media.key in selected,
+                            onClick = { if (selected.isEmpty()) preview = t.media else selected = if (t.media.key in selected) selected - t.media.key else selected + t.media.key },
+                            onLongClick = { selected = if (t.media.key in selected) selected - t.media.key else selected + t.media.key },
+                        )
                     }
+                }
                 }
             }
             BinActionBar(
@@ -104,11 +130,11 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun BinCell(t: TrashedMedia, selected: Boolean, onClick: () -> Unit) {
-    val onClickL by rememberUpdatedState(onClick)
+internal fun BinCell(t: TrashedMedia, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val days = if (t.expiresAt > 0) ceil((t.expiresAt - System.currentTimeMillis()) / 86_400_000.0).toInt().coerceAtLeast(0) else 30
-    Box(Modifier.aspectRatio(1f).pointerInput(Unit) { detectTapGestures(onTap = { onClickL() }) }) {
+    Box(Modifier.aspectRatio(1f).combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
         AsyncImage(
             model = t.media.uri, contentDescription = t.media.name, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().padding(if (selected) 10.dp else 0.dp)
@@ -137,16 +163,16 @@ private fun BinActionBar(visible: Boolean, onRestore: () -> Unit, onDelete: () -
         exit = slideOutVertically { it } + fadeOut(),
     ) {
         Row(
-            Modifier.padding(16.dp).glass(RoundedCornerShape(30.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp).glass(RoundedCornerShape(18.dp)).padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TextButton(onClick = onRestore) {
-                Icon(Icons.Filled.RestoreFromTrash, null)
+            FilledTonalButton(onClick = onRestore, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                Icon(Icons.Filled.RestoreFromTrash, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.restore))
             }
-            TextButton(onClick = onDelete) {
-                Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error)
+            OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                Icon(Icons.Filled.DeleteForever, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.delete_forever), color = MaterialTheme.colorScheme.error)
             }

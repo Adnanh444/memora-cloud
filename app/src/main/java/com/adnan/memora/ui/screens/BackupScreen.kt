@@ -58,10 +58,19 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
 
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> enable() }
 
+    var checking by remember { mutableStateOf(false) }
+    var confirmRetryHeld by remember { mutableStateOf(false) }
     val doneN = items.values.count { it.state == BackupState.VERIFIED }
-    val failedN = items.values.count { it.state == BackupState.FAILED }
+    val failedN = (items.values.count { it.state == BackupState.FAILED } - summary.needsConfirmation).coerceAtLeast(0)
     val waitingN = items.values.count { it.state == BackupState.QUEUED || it.state == BackupState.UPLOADING }
 
+    if (confirmRetryHeld) AlertDialog(
+        onDismissRequest = { confirmRetryHeld = false },
+        title = { Text(stringResource(R.string.rf_retry_held)) },
+        text = { Text(stringResource(R.string.rf_retry_held_warning)) },
+        confirmButton = { TextButton(onClick = { confirmRetryHeld = false; scope.launch { BackupEngine.retryHeld(ctx) } }) { Text(stringResource(R.string.bk_retry)) } },
+        dismissButton = { TextButton(onClick = { confirmRetryHeld = false }) { Text(stringResource(R.string.cancel)) } },
+    )
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(stringResource(R.string.bk_title)) },
@@ -88,7 +97,7 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                     BackupPhase.IDLE -> stringResource(R.string.backup_all_done)
                     BackupPhase.NOT_SET_UP -> stringResource(R.string.bk_state_off)
                 }
-                Text(phaseText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(if (summary.attention > 0 && summary.phase != BackupPhase.RUNNING) stringResource(R.string.rf_upload_failed) else phaseText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(stringResource(R.string.bk_counts, doneN, waitingN, failedN), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (summary.phase == BackupPhase.RUNNING) {
                     LinearProgressIndicator(
@@ -99,6 +108,21 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                         Text("${summary.currentName} · ${(summary.currentProgress * 100).toInt()}%",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
+                summary.stage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                if (summary.needsConfirmation > 0) {
+                    Text(stringResource(R.string.rf_upload_pending_count, summary.needsConfirmation), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.rf_upload_uncertain), style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(enabled = ready && !checking && summary.phase != BackupPhase.RUNNING, onClick = {
+                        checking = true
+                        scope.launch {
+                            try {
+                                val count = BackupEngine.checkUnconfirmed(ctx)
+                                android.widget.Toast.makeText(ctx, ctx.getString(R.string.rf_upload_check_result, count), android.widget.Toast.LENGTH_LONG).show()
+                            } finally { checking = false }
+                        }
+                    }) { Text(stringResource(R.string.rf_upload_check)) }
+                    TextButton(enabled = ready && !checking && summary.phase != BackupPhase.RUNNING, onClick = { confirmRetryHeld = true }) { Text(stringResource(R.string.rf_retry_held)) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {

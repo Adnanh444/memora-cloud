@@ -56,11 +56,11 @@ fun SheetOption(
     val cs = MaterialTheme.colorScheme
     ListItem(
         modifier = Modifier
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        colors = ListItemDefaults.colors(containerColor = if (destructive) cs.errorContainer.copy(alpha = 0.35f) else cs.surfaceContainerHigh),
         leadingContent = {
             Box(
                 Modifier.size(42.dp).clip(CircleShape)
@@ -87,23 +87,23 @@ fun DeleteSheet(
 ) {
     val trash = android.os.Build.VERSION.SDK_INT >= 30
     MemoraSheet(onDismiss) { close ->
-        Text(stringResource(R.string.delete_title, count), style = MaterialTheme.typography.titleLarge,
+        Text(stringResource(if (trash) R.string.rf_move_title else R.string.delete_title, count), style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
         Text(stringResource(R.string.delete_hint), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 10.dp))
         SheetOption(
-            Icons.Filled.PhoneAndroid, stringResource(R.string.delete_from_phone),
+            Icons.Filled.PhoneAndroid, stringResource(if (trash) R.string.rf_move_phone else R.string.delete_from_phone),
             stringResource(if (trash) R.string.delete_phone_sub_trash else R.string.delete_phone_sub_perm),
             destructive = true,
         ) { close(onDeletePhone) }
         SheetOption(
-            Icons.Filled.Cloud, stringResource(R.string.delete_from_cloud),
+            Icons.Filled.Cloud, stringResource(R.string.rf_move_cloud),
             stringResource(if (hasCloud) R.string.delete_cloud_sub else R.string.not_backed_up_item),
             enabled = hasCloud,
         ) { close(onDeleteCloud) }
         SheetOption(
-            Icons.Filled.DeleteSweep, stringResource(R.string.delete_from_both),
+            Icons.Filled.DeleteSweep, stringResource(if (trash) R.string.rf_move_both else R.string.delete_from_both),
             stringResource(if (hasCloud) R.string.delete_both_sub else R.string.not_backed_up_item),
             enabled = hasCloud, destructive = true,
         ) { close(onDeleteBoth) }
@@ -117,10 +117,10 @@ fun DeleteSheet(
 @Composable
 fun CloudDeleteSheet(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     MemoraSheet(onDismiss) { close ->
-        Text(stringResource(R.string.delete_title, count), style = MaterialTheme.typography.titleLarge,
+        Text(stringResource(R.string.rf_move_title, count), style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
         SheetOption(
-            Icons.Filled.Cloud, stringResource(R.string.delete_from_cloud),
+            Icons.Filled.Cloud, stringResource(R.string.rf_move_cloud),
             stringResource(R.string.delete_cloud_sub), destructive = true,
         ) { close(onConfirm) }
         TextButton(onClick = { close {} }, modifier = Modifier.align(Alignment.CenterHorizontally)) {

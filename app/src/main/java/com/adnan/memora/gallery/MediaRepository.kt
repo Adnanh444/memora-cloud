@@ -24,7 +24,7 @@ class MediaRepository(private val ctx: Context) {
             .sortedByDescending { it.media.dateTaken }
     }
 
-    private fun rows(video: Boolean, trashed: Boolean): List<Pair<LocalMedia, Long>> {
+    private fun rows(video: Boolean, trashed: Boolean, favorites: Boolean = Build.VERSION.SDK_INT >= 30): List<Pair<LocalMedia, Long>> {
         val base = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val cols = arrayListOf(
@@ -34,6 +34,7 @@ class MediaRepository(private val ctx: Context) {
             MediaStore.MediaColumns.WIDTH, MediaStore.MediaColumns.HEIGHT,
             "bucket_display_name",
         )
+        if (favorites) cols.add(MediaStore.MediaColumns.IS_FAVORITE)
         if (video) cols.add("duration")
         if (trashed) cols.add("date_expires")
         val out = ArrayList<Pair<LocalMedia, Long>>()
@@ -64,12 +65,16 @@ class MediaRepository(private val ctx: Context) {
                         durationMs = if (video) c.long("duration") else 0L,
                         isVideo = video,
                         bucket = c.str("bucket_display_name") ?: "Other",
+                        isFavorite = favorites && c.long(MediaStore.MediaColumns.IS_FAVORITE) == 1L,
                     )
                     out.add(media to (if (trashed) c.long("date_expires") * 1000 else 0L))
                 }
             }
         } catch (_: SecurityException) {
             // permission missing or revoked: return what we have
+        } catch (_: IllegalArgumentException) {
+            // Some vendor providers omit the standard favorite column. Keep the gallery usable.
+            if (favorites) return rows(video, trashed, false)
         }
         return out
     }

@@ -1,0 +1,37 @@
+[
+  {
+    "name": "com.adnan.memora.telegram.UploadAwaiterTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "com.adnan.memora.backup.UploadRunGateTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "com.adnan.memora.ui.screens.InterfaceRulesTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "com.adnan.memora.backup.UploadWorkspaceTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "com.adnan.memora.ui.screens.GridDensityTest",
+    "tests": "10",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

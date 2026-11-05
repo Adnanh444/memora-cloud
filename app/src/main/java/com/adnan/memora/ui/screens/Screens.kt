@@ -36,6 +36,7 @@ import androidx.core.os.LocaleListCompat
 import com.adnan.memora.BuildConfig
 import com.adnan.memora.Prefs
 import com.adnan.memora.R
+import com.adnan.memora.ui.theme.ThemeToggle
 import com.adnan.memora.ui.theme.GradientTitle
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.brandBrush
@@ -83,70 +84,26 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 @Composable
 fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit, onDuplicates: () -> Unit) {
     val ctx = LocalContext.current
-    val backupLabel = stringResource(if (com.adnan.memora.backup.BackupSettings.load(ctx).enabled) R.string.bk_on else R.string.bk_off)
-    val tgAuth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
-    val tgLabel = when (tgAuth) {
-        is com.adnan.memora.telegram.TgAuth.Ready -> stringResource(R.string.tg_connected)
-        else -> stringResource(R.string.tg_disconnected)
-    }
-    var showTheme by remember { mutableStateOf(false) }
+    val auth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
+    val tgLabel = stringResource(if (auth is com.adnan.memora.telegram.TgAuth.Ready) R.string.tg_connected else R.string.tg_disconnected)
     var showLang by remember { mutableStateOf(false) }
-    var showStyle by remember { mutableStateOf(false) }
-    val cleanNow = Prefs.cleanStyle(ctx)
-    val night = Prefs.themeMode(ctx)
-    val langTag = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
-
-    val themeModes = listOf(
-        AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM to stringResource(R.string.theme_system),
-        AppCompatDelegate.MODE_NIGHT_NO to stringResource(R.string.theme_light),
-        AppCompatDelegate.MODE_NIGHT_YES to stringResource(R.string.theme_dark),
-    )
+    val tag = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
     val langs = listOf("" to stringResource(R.string.lang_system), "en" to "English", "bn" to "বাংলা")
-    val themeLabel = themeModes.firstOrNull { it.first == night }?.second ?: ""
-    val langLabel = langs.firstOrNull { it.first == langTag }?.second ?: langs[0].second
-
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        GradientTitle(stringResource(R.string.nav_settings), Modifier.padding(4.dp))
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.settings_general), style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp).appear(60))
-        Column(Modifier.fillMaxWidth().appear(120).glass()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            GradientTitle(stringResource(R.string.nav_settings), Modifier.weight(1f)); ThemeToggle()
+        }
+        Spacer(Modifier.height(20.dp))
+        Column(Modifier.fillMaxWidth().glass()) {
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
-            SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), backupLabel, onBackup)
-            SettingRow(Icons.Filled.ContentCopy, stringResource(R.string.dup_title), stringResource(R.string.dup_sub), onDuplicates)
-            SettingRow(Icons.Filled.Palette, stringResource(R.string.appearance), themeLabel) { showTheme = true }
-            SettingRow(
-                Icons.Filled.Style, stringResource(R.string.ui_style),
-                stringResource(if (cleanNow) R.string.style_clean else R.string.style_neon),
-            ) { showStyle = true }
-            SettingRow(Icons.Filled.Language, stringResource(R.string.language), langLabel) { showLang = true }
+            SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), null, onBackup)
+            SettingRow(Icons.Filled.Language, stringResource(R.string.language), langs.firstOrNull { it.first == tag }?.second) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)
         }
     }
-
-    if (showTheme) ChoiceSheet(
-        title = stringResource(R.string.appearance),
-        options = themeModes.map { it.second to (it.first == night) },
-        onPick = { Prefs.setThemeMode(ctx, themeModes[it].first); showTheme = false },
-        onDismiss = { showTheme = false },
-    )
-    if (showStyle) ChoiceSheet(
-        title = stringResource(R.string.ui_style),
-        options = listOf(stringResource(R.string.style_clean) to cleanNow, stringResource(R.string.style_neon) to !cleanNow),
-        onPick = {
-            showStyle = false
-            Prefs.setCleanStyle(ctx, it == 0)
-            ctx.findActivity()?.recreate()
-        },
-        onDismiss = { showStyle = false },
-    )
     if (showLang) ChoiceSheet(
-        title = stringResource(R.string.language),
-        options = langs.map { it.second to (it.first == langTag) },
-        onPick = {
-            showLang = false
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langs[it].first))
-        },
+        title = stringResource(R.string.language), options = langs.map { it.second to (it.first == tag) },
+        onPick = { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langs[it].first)); showLang = false },
         onDismiss = { showLang = false },
     )
 }
@@ -157,8 +114,12 @@ private fun SettingRow(icon: ImageVector, title: String, subtitle: String?, onCl
         modifier = Modifier.clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = {
-            Box(Modifier.size(42.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
-                Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary)
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), Alignment.Center) {
+                Icon(icon, null, tint = when (icon) {
+                    Icons.Filled.Cloud -> MaterialTheme.colorScheme.secondary
+                    Icons.Filled.Language -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                })
             }
         },
         headlineContent = { Text(title, fontWeight = FontWeight.Medium) },

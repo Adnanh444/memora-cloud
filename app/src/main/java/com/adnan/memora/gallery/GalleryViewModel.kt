@@ -1,6 +1,12 @@
 package com.adnan.memora.gallery
 
 import android.app.Application
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
@@ -107,7 +113,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         return (local + cl).sortedByDescending { it.dateTaken }
     }
 
-    val favoriteMedia: StateFlow<List<LocalMedia>> = combine(_all, cloudMedia, favoriteShas, shaIndex) { a, c, s, i -> pick(a, c, s, i) }
+    val favoriteMedia: StateFlow<List<LocalMedia>> = _all.map { items -> items.filter { it.isFavorite } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val archiveMedia: StateFlow<List<LocalMedia>> = combine(_all, cloudMedia, archivedShas, shaIndex) { a, c, s, i -> pick(a, c, s, i) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -132,14 +138,6 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectedAny(): List<LocalMedia> =
         _all.value.filter { it.key in selection.value } + cloudMedia.value.filter { it.key in selection.value }
-
-    fun setFavorite(items: List<LocalMedia>, on: Boolean) {
-        viewModelScope.launch {
-            val app = getApplication<Application>()
-            OrgRepo.favorite(app, OrgRepo.shasFor(app, items, shaIndex.value), on)
-            toast(if (on) R.string.og_fav_added else R.string.og_fav_removed)
-        }
-    }
 
     fun setArchived(items: List<LocalMedia>, on: Boolean) {
         viewModelScope.launch {
@@ -193,17 +191,47 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         viewerStart = index
     }
 
+    private var refreshRequested = false
     fun refresh() {
+        refreshRequested = true
         if (_loading.value) return
+        // Coalesce a return-from-consent/provider update arriving during a query; never lose it.
+        _loading.value = true
         viewModelScope.launch {
-            _loading.value = true
-            val fresh = repo.loadAll()
-            _all.value = fresh
-            val keys = fresh.map { it.key }.toHashSet()
-            _viewerItems.value = _viewerItems.value.filter { it.key in keys || com.adnan.memora.cloud.CloudUri.isCloud(it.uri) }
-            _trash.value = repo.loadTrashed()
-            _loading.value = false
+            try {
+                while (refreshRequested) {
+                    refreshRequested = false
+                    val fresh = repo.loadAll()
+                    _all.value = fresh
+                    val byKey = fresh.associateBy { it.key }
+                    _viewerItems.value = _viewerItems.value.mapNotNull { item ->
+                        if (CloudUri.isCloud(item.uri)) item else byKey[item.key]
+                    }
+                    _trash.value = repo.loadTrashed()
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
+            } catch (failure: Exception) {
+                android.util.Log.w("MemoraGallery", "MediaStore refresh failed", failure)
+            } finally { _loading.value = false }
         }
+    }
+
+    private var refreshJob: Job? = null
+    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            refreshJob?.cancel()
+            refreshJob = viewModelScope.launch { delay(400); refresh() }
+        }
+    }
+    init {
+        try {
+            app.contentResolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer)
+            app.contentResolver.registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, observer)
+        } catch (_: SecurityException) { }
+    }
+    override fun onCleared() {
+        getApplication<Application>().contentResolver.unregisterContentObserver(observer)
+        super.onCleared()
     }
 
     fun toggle(key: String) {

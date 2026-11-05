@@ -27,6 +27,7 @@ import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.gallery.LocalMedia
 import com.adnan.memora.telegram.StorageStatus
 import com.adnan.memora.telegram.TelegramClient
+import com.adnan.memora.ui.theme.ThemeToggle
 import com.adnan.memora.ui.theme.GradientTitle
 import com.adnan.memora.ui.theme.glass
 import kotlinx.coroutines.launch
@@ -37,6 +38,7 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     val ctx = LocalContext.current
     val items by vm.cloudFeed.collectAsState()
     val selecting by vm.selecting.collectAsState()
+    val cloudAll by vm.cloudMedia.collectAsState()
     val dl by CloudDownloader.state.collectAsState()
     val status by remember { TelegramClient.get(ctx) }.storageStatus.collectAsState()
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
@@ -45,9 +47,14 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
         Crossfade(selecting, label = "cloudHeader") { sel ->
             if (sel) CloudSelectionHeader(vm, items)
             else Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)) {
-                GradientTitle(stringResource(R.string.nav_cloud))
-                Text(stringResource(R.string.items_count, items.size), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); ThemeToggle()
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.rf_cloud_photos, cloudAll.count { !it.isVideo }), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.rf_cloud_videos, cloudAll.count { it.isVideo }), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+                    Text(stringResource(R.string.rf_cloud_total, cloudAll.size), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                }
             }
         }
         dl?.let { DownloadStrip(it) }
@@ -55,7 +62,7 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
             MediaGrid(
                 list = items, vm = vm,
                 onOpen = { i -> vm.openViewer(items, i); onOpenViewer() },
-                modifier = Modifier.fillMaxSize(), showBadges = false,
+                modifier = Modifier.fillMaxSize(), showBadges = false, gridKey = "cloud",
             )
         } else {
             Column(

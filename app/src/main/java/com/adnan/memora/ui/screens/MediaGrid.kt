@@ -91,7 +91,7 @@ private fun buildEntries(list: List<LocalMedia>, todayLabel: String, yesterdayLa
 @Composable
 fun MediaGrid(
     list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Unit, modifier: Modifier = Modifier,
-    showBadges: Boolean = true,
+    showBadges: Boolean = true, gridKey: String = "gallery",
 ) {
     val selection by vm.selection.collectAsState()
     val selecting by vm.selecting.collectAsState()
@@ -102,16 +102,17 @@ fun MediaGrid(
     val built = remember(list, todayL, yesterdayL) { buildEntries(list, todayL, yesterdayL) }
     val state = rememberLazyGridState()
     val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
-    val gap = if (LocalCleanStyle.current) 2.dp else 3.dp
+    val gap = 4.dp
 
-    Box(modifier) {
+    PinchGrid(gridKey, modifier) { columns, gesture ->
+    Box(Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             state = state,
-            columns = GridCells.Adaptive(104.dp),
+            columns = GridCells.Fixed(columns),
             contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(gap),
             verticalArrangement = Arrangement.spacedBy(gap),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(gesture),
         ) {
             items(
                 count = built.entries.size,
@@ -138,6 +139,7 @@ fun MediaGrid(
             }
         }
         FastScroller(state, built.months)
+    }
     }
 }
 
@@ -227,7 +229,7 @@ private fun MediaCell(
     val onClickL by rememberUpdatedState(onClick)
     val onLongL by rememberUpdatedState(onLongClick)
     val clean = LocalCleanStyle.current
-    val shape = RoundedCornerShape(if (selected) 14.dp else if (clean) 2.dp else 8.dp)
+    val shape = RoundedCornerShape(if (selected) 14.dp else 6.dp)
     val brand = brandBrush()
 
     Box(
