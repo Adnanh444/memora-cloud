@@ -40,6 +40,7 @@ import com.adnan.memora.backup.BackupScheduler
 import com.adnan.memora.gallery.BackupPhase
 import com.adnan.memora.gallery.BackupSummary
 import com.adnan.memora.gallery.GalleryViewModel
+import com.adnan.memora.ui.theme.ThemeToggle
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.glass
 
@@ -138,11 +139,7 @@ private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit, onSettings: (
             modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onSelect).padding(6.dp),
         )
         Spacer(Modifier.width(4.dp))
-        Box(
-            Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary)
-                .clickable(onClick = onSettings),
-            Alignment.Center,
-        ) { Text("M", color = cs.onPrimary, fontWeight = FontWeight.Bold) }
+        ThemeToggle()
     }
 }
 
@@ -185,6 +182,11 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
                             }
                         }
                     }
+                    s.attention > 0 && s.phase != BackupPhase.RUNNING -> {
+                        Icon(Icons.Filled.WarningAmber, null, Modifier.size(20.dp), tint = cs.error)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.rf_upload_failed), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
+                    }
                     s.phase == BackupPhase.IDLE -> {
                         Icon(Icons.Filled.CloudDone, null, Modifier.size(20.dp), tint = cs.primary)
                         Spacer(Modifier.width(10.dp))
@@ -205,6 +207,9 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
                     )
                 }
             }
+        }
+        if (s.phase == BackupPhase.RUNNING && s.stage != null) {
+            Text(s.stage, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, start = 8.dp))
         }
         if (s.phase == BackupPhase.RUNNING && !s.paused) {
             LinearProgressIndicator(

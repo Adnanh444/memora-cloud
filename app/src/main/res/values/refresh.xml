@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rf_light">Switch to light mode</string>
+    <string name="rf_dark">Switch to dark mode</string>
+    <string name="rf_gallery">Gallery</string>
+    <string name="rf_albums">Albums</string>
+    <string name="rf_cloud_photos">Photos: %1$d</string>
+    <string name="rf_cloud_videos">Videos: %1$d</string>
+    <string name="rf_cloud_total">Total: %1$d</string>
+    <string name="rf_favorites_note">Phone favorites from Android media storage. Google Photos cloud-only or private gallery favorites may not be exposed.</string>
+    <string name="rf_favorite_unavailable">Phone favorites require Android 11 or newer.</string>
+    <string name="rf_favorite_cloud">Download cloud-only items first to favorite them in phone storage.</string>
+    <string name="rf_favorite_error">Android could not update favorites. Check photo access and try again.</string>
+    <string name="rf_grid_hint">Pinch to resize · Your grid size is remembered</string>
+    <string name="rf_upload_pending">Needs confirmation</string>
+    <string name="rf_upload_uncertain">Telegram response was not confirmed. This item will not be uploaded again automatically. Check confirmation below.</string>
+    <string name="rf_upload_check">Check confirmation</string>
+    <string name="rf_upload_pending_count">%1$d uploads need confirmation</string>
+    <string name="rf_upload_check_result">%1$d confirmed. Unresolved items remain held; originals are safe.</string>
+    <string name="rf_upload_stage_prepare">Preparing original…</string>
+    <string name="rf_upload_stage_send">Sending to Telegram…</string>
+    <string name="rf_upload_stage_verify">Checking Telegram confirmation…</string>
+    <string name="rf_upload_failed">Some items need attention. Open Backup for details.</string>
+    <string name="rf_upload_timeout">No transfer progress was received. Confirmation is required before retrying.</string>
+    <string name="rf_foreground_error">Android did not allow the backup service. Open the app and retry.</string>
+    <string name="rf_move_phone">Move phone copies to bin</string>
+    <string name="rf_move_cloud">Move cloud copies to bin</string>
+    <string name="rf_move_both">Move both copies to bin</string>
+    <string name="rf_move_title">Move %1$d items to bin?</string>
+    <string name="rf_confirm_delete">Delete forever</string>
+    <string name="rf_private_legacy">Old Memora favorites are preserved privately; this view now follows phone storage.</string>
+    <string name="rf_retry_held">Retry held uploads</string>
+    <string name="rf_retry_held_warning">Only retry after checking Telegram. A copy may already exist there; retrying could create another copy. Your phone originals are not deleted.</string>
+</resources>

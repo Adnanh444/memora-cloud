@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.adnan.memora.backup.UploadWorkspaceTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-05T06:23:06" hostname="e2b.local" time="0.039">
+  <properties/>
+  <testcase name="unsafeAndEmptyNamesStayInsideAttempt" classname="com.adnan.memora.backup.UploadWorkspaceTest" time="0.032"/>
+  <testcase name="longNamesAreLimitedAndCleanupIsIdempotent" classname="com.adnan.memora.backup.UploadWorkspaceTest" time="0.001"/>
+  <testcase name="originalCalledPreviewNeverCollidesWithThumbnail" classname="com.adnan.memora.backup.UploadWorkspaceTest" time="0.003"/>
+  <testcase name="identicalNamesHaveIndependentFilesAndCleanup" classname="com.adnan.memora.backup.UploadWorkspaceTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,8 @@
+Baseline: 596acfbfc2a0b8f2b2f27272373d89849b19279b
+UNCHANGED: 23
+AUTHORIZED_CHANGE: 8
+NEW_UPLOAD_HELPER: 3
+Existing Gradle signingConfigs block: BYTE-IDENTICAL
+Existing release signing selection: UNCHANGED
+Original manifest, ProGuard, import/keygen workflows and MediaActions: BYTE-IDENTICAL
+No remote write, main merge or destructive cleanup performed.

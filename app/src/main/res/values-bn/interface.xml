@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="ui_bin_hint">দেখতে ট্যাপ করুন · নির্বাচন করতে চেপে ধরুন</string>
+    <string name="ui_deselect_all">সব অনির্বাচন</string>
+    <string name="ui_preview_unavailable">প্রিভিউ পাওয়া যাচ্ছে না। দেখতে ফাইলটি ডিভাইসে ফিরিয়ে আনুন।</string>
+    <string name="ui_preview_loading">প্রিভিউ প্রস্তুত হচ্ছে…</string>
+    <string name="ui_bin_preview">বিনে থাকা ফাইল</string>
+    <string name="ui_view_selected">নির্বাচিত ফাইল দেখুন</string>
+    <string name="ui_retry_preview">আবার প্রিভিউ দেখুন</string>
+    <string name="ui_play">ভিডিও চালান</string>
+</resources>

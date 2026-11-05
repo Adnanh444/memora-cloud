@@ -1,8 +1,11 @@
-# Privacy Policy (draft, Phase 1)
-Memora Cloud has no developer-operated server and no analytics. Media is uploaded only to a private Telegram channel owned by the user (from Phase 3). Telegram credentials are handled by Telegram's official login flow; Memora never stores your password or OTP. Face data (Phase 8) is processed on-device, encrypted, and can be deleted at any time. This policy will be finalized as features ship.
+# Privacy notes
 
-## Telegram (Phase 3)
-- Sign-in uses Telegram's official TDLib library: phone number, login code and (if you set one) your two-step password go directly to Telegram. Memora never stores your password or the code.
-- The local Telegram session database is encrypted with a random key that is itself protected by the Android Keystore.
-- The app creates one private channel in YOUR account. "Forget this storage" only removes it from the app; it never deletes anything in Telegram.
-- Each user enters their own Telegram API key in the app. It is stored encrypted on that phone only and is never sent to the developer or committed to the repository.
+Memora Cloud has no developer-operated media server or analytics integration. Its existing cloud features use TDLib and the user's Telegram account/destination; Telegram's terms, privacy practices and availability apply. This app does not promise unlimited or permanent storage.
+
+Local photos/videos are read through Android media permissions. Android 11+ phone favorites use the platform MediaStore flag and Android-owned consent. This does not grant access to Google Photos account favorites or another gallery's private database. Historical Memora organization records remain in the existing database/metadata system rather than being silently erased during this transition.
+
+The app keeps its backup index, preferences, organization records and Telegram session data in app-managed storage, and uses temporary files for uploads/previews/downloads. Do not publish session data, private signing keys or build credentials. Build-time Secrets keep API credentials out of source control; credentials embedded in an APK remain extractable.
+
+Android owns the system permission, favorite, trash/restore and deletion consent screens. No all-files access or optional MANAGE_MEDIA privilege is added by this revision. Choosing Delete forever is destructive; canceled or uncertain uploads are not proof of a verified remote copy.
+
+No new face-analysis/biometric feature or private-gallery integration is introduced in 0.9.2. Consult the implementation guide for exact support boundaries and the phone checks still required.

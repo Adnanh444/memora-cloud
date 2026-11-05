@@ -89,6 +89,10 @@ fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () 
                 }
             }
         }
+        if (kind == CollectionKind.FAVORITES) {
+            Text(stringResource(R.string.rf_favorites_note), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        }
         if (kind == CollectionKind.ARCHIVE) {
             Text(stringResource(R.string.og_archive_hint), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -102,7 +106,7 @@ fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () 
             MediaGrid(
                 list = items, vm = vm,
                 onOpen = { i -> vm.openViewer(items, i); onOpenViewer() },
-                modifier = Modifier.fillMaxSize(), showBadges = false,
+                modifier = Modifier.fillMaxSize(), showBadges = false, gridKey = "albums",
             )
         }
     }
@@ -110,6 +114,7 @@ fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () 
 
 @Composable
 private fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adnan.memora.gallery.LocalMedia>, kind: CollectionKind, albumId: String) {
+    val favoriteAction = rememberPhoneFavoriteAction { vm.refresh() }
     val selection by vm.selection.collectAsState()
     BackHandler { vm.clearSelection() }
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -124,7 +129,7 @@ private fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adnan
             onClick = {
                 val picked = vm.selectedAny()
                 when (kind) {
-                    CollectionKind.FAVORITES -> vm.setFavorite(picked, false)
+                    CollectionKind.FAVORITES -> favoriteAction(picked, false)
                     CollectionKind.ARCHIVE -> vm.setArchived(picked, false)
                     CollectionKind.ALBUM -> vm.removeFromAlbum(albumId, picked)
                 }

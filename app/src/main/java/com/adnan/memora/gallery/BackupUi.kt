@@ -13,6 +13,9 @@ data class BackupSummary(
     val currentProgress: Float = 0f,
     val paused: Boolean = false,
     val waiting: Int = 0,
+    val attention: Int = 0,
+    val needsConfirmation: Int = 0,
+    val stage: String? = null,
 )
 
 /** Per-item cloud state shown as a small badge on thumbnails. */

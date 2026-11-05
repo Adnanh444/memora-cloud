@@ -77,8 +77,6 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     val items by vm.viewerItems.collectAsState()
     val backup by vm.itemBackup.collectAsState()
     val summary by vm.backupSummary.collectAsState()
-    val favs by vm.favoriteShas.collectAsState()
-    val shaIdx by vm.shaIndex.collectAsState()
     if (items.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
         return
@@ -94,6 +92,7 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
     DisposableEffect(Unit) { onDispose { TelegramClient.get(ctx).releaseFullFiles() } }
     var heightPx by remember { mutableFloatStateOf(0f) }
     val deleteAction = rememberDeleteAction(onDone = { vm.refresh() })
+    val favoriteAction = rememberPhoneFavoriteAction { vm.refresh() }
     val shift by animateFloatAsState(if (detailsOpen) 1f else 0f, tween(380, easing = FastOutSlowInEasing), label = "shift")
     BackHandler(detailsOpen) { detailsOpen = false }
     LaunchedEffect(pager.currentPage) { zoomed = false }
@@ -179,9 +178,10 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                     Icon(if (ok) Icons.Filled.CloudDone else Icons.Filled.CloudOff, null, tint = Color.White,
                         modifier = Modifier.padding(end = 8.dp))
                 }
-                val isFav = shaIdx[current.key]?.let { it in favs } == true
-                IconButton(
-                    onClick = { vm.setFavorite(listOf(current), !isFav) },
+                val isFav = current.isFavorite
+                if (!isCloud) IconButton(
+                    onClick = { favoriteAction(listOf(current), !isFav) },
+                    enabled = !isCloud && android.os.Build.VERSION.SDK_INT >= 30,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
                 ) {
                     Icon(
@@ -448,7 +448,7 @@ private fun DetailRow(icon: ImageVector, title: String, subtitle: String?) {
  * played, and removed again when you leave. Nothing is saved to the gallery unless you tap Download.
  */
 @Composable
-private fun CloudVideoPlayer(m: LocalMedia, onClose: () -> Unit) {
+internal fun CloudVideoPlayer(m: LocalMedia, onClose: () -> Unit) {
     val ctx = LocalContext.current
     var path by remember(m.key) { mutableStateOf<String?>(null) }
     var progress by remember(m.key) { mutableFloatStateOf(0f) }

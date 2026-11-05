@@ -88,6 +88,7 @@ fun OrgMenu(
 ) {
     var menu by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf(false) }
+    val favoriteAction = rememberPhoneFavoriteAction { vm.refresh() }
     val albums by vm.albums.collectAsState()
     Box {
         IconButton(onClick = { menu = true }, enabled = enabled) {
@@ -96,8 +97,9 @@ fun OrgMenu(
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.og_favorite)) },
+                enabled = android.os.Build.VERSION.SDK_INT >= 30 && pickItems().any { PhoneFavoriteRules.isLocal(it.uri.scheme) },
                 leadingIcon = { Icon(Icons.Filled.FavoriteBorder, null) },
-                onClick = { menu = false; vm.setFavorite(pickItems(), true); onDone() },
+                onClick = { menu = false; favoriteAction(pickItems(), true); onDone() },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.og_archive_action)) },

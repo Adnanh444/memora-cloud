@@ -7,3 +7,5 @@ local.properties
 *.keystore
 *.apk
 secrets.properties
+
+.kotlin/

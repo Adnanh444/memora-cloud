@@ -33,6 +33,7 @@ data class BackupEntry(
         const val ST_VERIFIED = "VERIFIED"
         const val ST_DUPLICATE = "DUPLICATE"
         const val ST_FAILED = "FAILED"
+        const val ST_CONFIRMING = "CONFIRMING" // uncertain remote outcome: never blindly auto-retry
         const val ST_TRASHED = "TRASHED"   // moved to the cloud bin (still in Telegram for 30 days)
         const val ST_DELETED = "DELETED"   // removed from the cloud on purpose; never re-uploaded automatically
     }
@@ -82,6 +83,15 @@ interface BackupDao {
 
     @Query("SELECT uri, sha256 FROM hash_cache UNION SELECT uri, sha256 FROM backup_entries WHERE sha256 IS NOT NULL")
     fun observeShaRows(): Flow<List<ShaRow>>
+
+    @Query("SELECT * FROM backup_entries WHERE state = 'CONFIRMING'")
+    suspend fun unconfirmed(): List<BackupEntry>
+
+    @Query("UPDATE backup_entries SET state = 'QUEUED', attempts = 0, error = NULL WHERE state = 'CONFIRMING'")
+    suspend fun releaseUnconfirmed()
+
+    @Query("SELECT COUNT(*) FROM backup_entries WHERE state = 'FAILED' AND attempts < 5")
+    suspend fun retryableFailures(): Int
 
     @Query("SELECT * FROM backup_entries")
     suspend fun all(): List<BackupEntry>

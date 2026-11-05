@@ -15,6 +15,7 @@ import com.adnan.memora.telegram.TelegramClient
 import com.adnan.memora.telegram.ThumbInfo
 import com.adnan.memora.telegram.UploadResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileNotFoundException
 
@@ -52,9 +54,11 @@ object BackupEngine {
 
     private lateinit var appCtx: Context
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val uploadGate = UploadRunGate()
+    private data class Live(val uri: String, val progress: Float, val stage: String)
     private val running = MutableStateFlow(false)
     @Volatile private var uploadJob: Job? = null
-    private val live = MutableStateFlow<Pair<String, Float>?>(null)
+    private val live = MutableStateFlow<Live?>(null)
     private val configFlow = MutableStateFlow<BackupConfig?>(null)
 
     private val _summary = MutableStateFlow(BackupSummary())
@@ -66,6 +70,7 @@ object BackupEngine {
     private val _cloudTrash = MutableStateFlow<List<BackupEntry>>(emptyList())
     val cloudTrash: StateFlow<List<BackupEntry>> = _cloudTrash
 
+    @Synchronized
     fun init(ctx: Context) {
         if (::appCtx.isInitialized) return
         appCtx = ctx.applicationContext
@@ -91,27 +96,33 @@ object BackupEngine {
     }
 
     private fun compute(
-        entries: List<BackupEntry>, run: Boolean, lv: Pair<String, Float>?, cfg: BackupConfig?, st: StorageStatus,
+        entries: List<BackupEntry>, run: Boolean, lv: Live?, cfg: BackupConfig?, st: StorageStatus,
     ): Pair<BackupSummary, Map<String, ItemBackup>> {
         val map = HashMap<String, ItemBackup>(entries.size * 2)
         var done = 0
         var waiting = 0
         var total = 0
+        var attention = 0
+        var confirming = 0
         var currentName: String? = null
         var currentProgress = 0f
         for (e in entries) {
             if (e.state == BackupEntry.ST_TRASHED || e.state == BackupEntry.ST_DELETED) continue
             if (e.uri.startsWith("cloud:")) continue // restored from the cloud, not a file of this phone
             total++
-            val isLive = lv != null && lv.first == e.uri
+            val isLive = lv != null && lv.uri == e.uri
             val item = when (e.state) {
                 BackupEntry.ST_VERIFIED -> { done++; ItemBackup(BackupState.VERIFIED) }
                 BackupEntry.ST_DUPLICATE -> { done++; ItemBackup(BackupState.VERIFIED, 0f, true) }
                 BackupEntry.ST_UPLOADING -> {
-                    if (isLive) { currentName = e.name; currentProgress = lv!!.second } else waiting++
-                    ItemBackup(BackupState.UPLOADING, if (isLive) lv!!.second else 0f)
+                    if (isLive) { currentName = e.name; currentProgress = lv!!.progress } else waiting++
+                    ItemBackup(BackupState.UPLOADING, if (isLive) lv!!.progress else 0f)
                 }
-                BackupEntry.ST_FAILED -> ItemBackup(BackupState.FAILED)
+                BackupEntry.ST_CONFIRMING -> {
+                    if (isLive) { currentName = e.name; currentProgress = lv!!.progress; ItemBackup(BackupState.UPLOADING, lv.progress) }
+                    else { attention++; confirming++; ItemBackup(BackupState.FAILED) }
+                }
+                BackupEntry.ST_FAILED -> { attention++; ItemBackup(BackupState.FAILED) }
                 else -> { waiting++; ItemBackup(BackupState.QUEUED) }
             }
             map[e.uri] = item
@@ -122,10 +133,10 @@ object BackupEngine {
             !active || !ready -> BackupPhase.NOT_SET_UP
             cfg?.paused == true -> BackupPhase.PAUSED
             run -> BackupPhase.RUNNING
-            waiting > 0 -> BackupPhase.PAUSED
+            waiting > 0 || attention > 0 -> BackupPhase.PAUSED
             else -> BackupPhase.IDLE
         }
-        return BackupSummary(phase, done, total, currentName, currentProgress, cfg?.paused == true, waiting) to map
+        return BackupSummary(phase, done, total, currentName, currentProgress, cfg?.paused == true, waiting, attention, confirming, lv?.stage) to map
     }
 
     /** THE RULE. A file may upload only if its type is ON and its folder is ON. */
@@ -202,13 +213,44 @@ object BackupEngine {
         val fresh = ok.filter { it.key !in existing }.map { it.toEntry() }
         if (fresh.isNotEmpty()) dao.insertAll(fresh)
         ok.map { it.key }.chunked(500).forEach { dao.requeue(it); dao.requeueDeleted(it) }
-        BackupScheduler.runNow(ctx)
+        // KEEP would lose a manual enqueue racing the end of an already-running worker.
+        BackupScheduler.runNow(ctx, append = true)
         Pair(ok.size, skipped)
     }
 
     suspend fun retryFailed(ctx: Context) = withContext(Dispatchers.IO) {
         BackupDb.get(ctx).dao().retryAllFailed()
-        BackupScheduler.runNow(ctx)
+        BackupScheduler.runNow(ctx, append = true)
+    }
+
+    suspend fun hasRetryableFailures(ctx: Context): Boolean = BackupDb.get(ctx).dao().retryableFailures() > 0
+
+    /** Positive matches only. A missing/partial response never authorizes another upload. */
+    suspend fun checkUnconfirmed(ctx: Context): Int = uploadGate.run {
+        val dao = BackupDb.get(ctx).dao()
+        val tg = TelegramClient.get(ctx)
+        val pending = dao.unconfirmed()
+        if (pending.isEmpty() || !tg.awaitUsable()) return@run 0
+        var confirmed = 0
+        for ((chat, entries) in pending.groupBy { it.chatId }) {
+            val documents = try { withTimeoutOrNull(120_000L) { tg.scanHistory(chat) {} } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { null } ?: continue
+            for (entry in entries) {
+                if (entry.sha256 == null) continue
+                val found = documents.firstOrNull { it.sha == entry.sha256 && it.size == entry.size } ?: continue
+                dao.update(entry.copy(state = BackupEntry.ST_VERIFIED, messageId = found.messageId,
+                    verifiedAt = System.currentTimeMillis(), uploadedAt = found.dateMs, error = null))
+                confirmed++
+            }
+        }
+        confirmed
+    }
+
+    /** Explicit owner decision only, after inspecting the destination. May duplicate an unobserved remote copy. */
+    suspend fun retryHeld(ctx: Context) = uploadGate.run {
+        BackupDb.get(ctx).dao().releaseUnconfirmed()
+        BackupScheduler.runNow(ctx, append = true)
     }
 
     // ------------------------------------------------------------------ cloud library / cloud bin
@@ -259,7 +301,14 @@ object BackupEngine {
     // ------------------------------------------------------------------ uploads
 
     /** Processes the queue one item at a time. Returns false if the cloud storage was not usable. */
-    suspend fun runUploads(ctx: Context): Boolean {
+    suspend fun runUploads(ctx: Context): Boolean = uploadGate.run {
+        if (BackupSettings.load(ctx).paused) true else {
+            scanAndEnqueue(ctx)
+            runUploadsExclusive(ctx)
+        }
+    }
+
+    private suspend fun runUploadsExclusive(ctx: Context): Boolean {
         val dao = BackupDb.get(ctx).dao()
         val tg = TelegramClient.get(ctx)
         if (!tg.awaitUsable()) return false
@@ -271,7 +320,7 @@ object BackupEngine {
             val todo = dao.pendingUris(MAX_AUTO_ATTEMPTS)
             val media = MediaRepository(ctx).loadAll().associateBy { it.key }
             coroutineScope {
-                val job = launch {
+                val job = launch(start = CoroutineStart.LAZY) {
                     for (uri in todo) {
                         val cfg = BackupSettings.load(ctx)
                         if (cfg.paused) break
@@ -282,6 +331,7 @@ object BackupEngine {
                     }
                 }
                 uploadJob = job
+                job.start()
                 job.join()
             }
         } finally {
@@ -292,11 +342,6 @@ object BackupEngine {
             }
         }
         return true
-    }
-
-    private fun safeName(n: String): String {
-        val cleaned = n.replace(Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]"), "_").trim().take(120)
-        return if (cleaned.isBlank()) "file" else cleaned
     }
 
     private suspend fun processOne(ctx: Context, dao: BackupDao, tg: TelegramClient, chatId: Long, uri: String) {
@@ -313,10 +358,13 @@ object BackupEngine {
         }
         e = e.copy(state = BackupEntry.ST_UPLOADING, error = null, attempts = e.attempts + 1)
         dao.update(e)
-        live.value = e.uri to 0f
-        val temp = File(dir, safeName(e.name))
-        val thumbFile = File(dir, "preview_" + System.nanoTime() + ".jpg")
+        live.value = Live(e.uri, 0f, ctx.getString(R.string.rf_upload_stage_prepare))
+        var workspace: UploadWorkspace? = null
         try {
+            val attempt = UploadWorkspace.create(dir, e.name)
+            workspace = attempt
+            val temp = attempt.original
+            val thumbFile = attempt.thumbnail
             val sha = try {
                 Hashing.copyAndHash(ctx, Uri.parse(e.uri), temp)
             } catch (_: FileNotFoundException) {
@@ -340,13 +388,20 @@ object BackupEngine {
             val dims = Thumbs.make(ctx, Uri.parse(e.uri), e.isVideo, thumbFile)
             val thumb = if (dims != null) ThumbInfo(thumbFile.absolutePath, dims.first, dims.second) else null
 
+            // Persist uncertainty BEFORE sending: even process death cannot silently requeue this attempt.
+            e = e.copy(sha256 = sha, size = actualSize, chatId = chatId, state = BackupEntry.ST_CONFIRMING)
+            dao.update(e)
+            live.value = Live(e.uri, 0f, ctx.getString(R.string.rf_upload_stage_send))
             var lastReported = 0f
             val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha taken=${e.dateTaken}", thumb) { p ->
-                if (p - lastReported >= 0.05f || p >= 1f) { lastReported = p; live.value = e.uri to p }
+                if (p - lastReported >= 0.05f || p >= 1f) { lastReported = p; live.value = Live(e.uri, p, ctx.getString(R.string.rf_upload_stage_send)) }
             }
             val now = System.currentTimeMillis()
             when (res) {
                 is UploadResult.Success -> {
+                    e = e.copy(messageId = res.messageId)
+                    dao.update(e)
+                    live.value = Live(e.uri, 1f, ctx.getString(R.string.rf_upload_stage_verify))
                     if (tg.verifyMessage(chatId, res.messageId, actualSize)) {
                         dao.update(
                             e.copy(
@@ -355,19 +410,24 @@ object BackupEngine {
                             )
                         )
                     } else {
-                        dao.update(e.copy(sha256 = sha, state = BackupEntry.ST_FAILED, error = ctx.getString(R.string.bk_err_verify)))
+                        dao.update(e.copy(sha256 = sha, state = BackupEntry.ST_CONFIRMING, error = ctx.getString(R.string.rf_upload_uncertain)))
                     }
                 }
+                is UploadResult.Uncertain -> dao.update(e.copy(state = BackupEntry.ST_CONFIRMING, messageId = res.messageId,
+                    error = ctx.getString(R.string.rf_upload_uncertain)))
                 is UploadResult.Failure -> dao.update(e.copy(sha256 = sha, state = BackupEntry.ST_FAILED, error = res.message))
             }
         } catch (c: CancellationException) {
-            withContext(NonCancellable) { dao.update(e.copy(state = BackupEntry.ST_QUEUED)) }
+            withContext(NonCancellable) {
+                dao.update(if (e.state == BackupEntry.ST_CONFIRMING) e.copy(error = ctx.getString(R.string.rf_upload_uncertain))
+                    else e.copy(state = BackupEntry.ST_QUEUED))
+            }
             throw c
         } catch (t: Exception) {
-            dao.update(e.copy(state = BackupEntry.ST_FAILED, error = (t.message ?: "error").take(120)))
+            dao.update(e.copy(state = if (e.state == BackupEntry.ST_CONFIRMING) BackupEntry.ST_CONFIRMING else BackupEntry.ST_FAILED,
+                error = if (e.state == BackupEntry.ST_CONFIRMING) ctx.getString(R.string.rf_upload_uncertain) else (t.message ?: "error").take(120)))
         } finally {
-            temp.delete()
-            thumbFile.delete()
+            workspace?.close()
         }
     }
 }

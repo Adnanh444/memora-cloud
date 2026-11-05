@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="ui_bin_hint">Tap to preview · Hold to select</string>
+    <string name="ui_deselect_all">Deselect all</string>
+    <string name="ui_preview_unavailable">Preview unavailable. Restore this item to view it on your device.</string>
+    <string name="ui_preview_loading">Preparing preview…</string>
+    <string name="ui_bin_preview">Item in bin</string>
+    <string name="ui_view_selected">View selected item</string>
+    <string name="ui_retry_preview">Retry preview</string>
+    <string name="ui_play">Play video</string>
+</resources>

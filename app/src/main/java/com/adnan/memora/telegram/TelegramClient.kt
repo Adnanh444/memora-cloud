@@ -45,6 +45,7 @@ sealed class StorageStatus {
 sealed class UploadResult {
     class Success(val messageId: Long) : UploadResult()
     class Failure(val message: String) : UploadResult()
+    class Uncertain(val messageId: Long = 0L) : UploadResult()
 }
 
 /** A file found in the storage channel while rebuilding the cloud library. */
@@ -320,11 +321,12 @@ class TelegramClient private constructor(private val app: Context) {
         _status.value = StorageStatus.Problem(app.getString(R.string.tg_problem_unreachable, m))
     }
 
-    private suspend fun sendAndWait(q: TdApi.Function<*>): TdApi.Object? {
+    private suspend fun sendAndWait(q: TdApi.Function<*>, timeoutMs: Long? = null): TdApi.Object? {
         val c = client ?: return null
-        return suspendCancellableCoroutine<TdApi.Object?> { cont ->
-            c.send(q) { r -> if (cont.isActive) cont.resume(r) }
+        val request: suspend () -> TdApi.Object? = {
+            suspendCancellableCoroutine { cont -> c.send(q) { r -> if (cont.isActive) cont.resume(r) } }
         }
+        return if (timeoutMs == null) request() else withTimeoutOrNull(timeoutMs) { request() }
     }
 
     /** Waits until Telegram is signed in and the storage channel is verified. */
@@ -364,15 +366,22 @@ class TelegramClient private constructor(private val app: Context) {
         req.chatId = chatId
         req.inputMessageContent = content
 
-        val sent = sendAndWait(req) ?: return UploadResult.Failure(app.getString(R.string.bk_err_send_failed))
+        val sent = sendAndWait(req, 60_000L) ?: return UploadResult.Uncertain()
         if (sent is TdApi.Error) return UploadResult.Failure(friendly(sent.message ?: ""))
         val msg = sent as? TdApi.Message ?: return UploadResult.Failure(app.getString(R.string.bk_err_send_failed))
+        if (msg.sendingState == null) return UploadResult.Success(msg.id)
         val temp = msg.id
         val fileId = (msg.content as? TdApi.MessageDocument)?.document?.document?.id
-        if (fileId != null) progressByFile[fileId] = onProgress
+        val clock = { System.nanoTime() / 1_000_000 }
+        val lastProgress = java.util.concurrent.atomic.AtomicLong(clock())
+        var highest = -1f
+        if (fileId != null) progressByFile[fileId] = { progress ->
+            if (progress > highest) { highest = progress; lastProgress.set(clock()) }
+            onProgress(progress)
+        }
         val deferred = deferredFor(temp)
         try {
-            return deferred.await()
+            return UploadAwaiter.await(deferred, { lastProgress.get() }, clock) ?: UploadResult.Uncertain(temp)
         } catch (e: CancellationException) {
             // upload was interrupted: cancel the pending message so it is not sent twice later
             val del = TdApi.DeleteMessages()
@@ -392,7 +401,7 @@ class TelegramClient private constructor(private val app: Context) {
         val q = TdApi.GetMessage()
         q.chatId = chatId
         q.messageId = messageId
-        val m = sendAndWait(q) as? TdApi.Message ?: return false
+        val m = sendAndWait(q, 60_000L) as? TdApi.Message ?: return false
         val f = (m.content as? TdApi.MessageDocument)?.document?.document ?: return false
         return f.size == expectedSize || f.expectedSize == expectedSize
     }

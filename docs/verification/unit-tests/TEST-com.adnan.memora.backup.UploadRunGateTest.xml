@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.adnan.memora.backup.UploadRunGateTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-05T06:23:06" hostname="e2b.local" time="0.226">
+  <properties/>
+  <testcase name="overlappingWorkersNeverEnterTogether" classname="com.adnan.memora.backup.UploadRunGateTest" time="0.203"/>
+  <testcase name="cancelledOwnerReleasesGateForNextWorker" classname="com.adnan.memora.backup.UploadRunGateTest" time="0.011"/>
+  <testcase name="failureReleasesGate" classname="com.adnan.memora.backup.UploadRunGateTest" time="0.002"/>
+  <testcase name="cancellingWaiterDoesNotCancelOwnerOrBlockLaterWork" classname="com.adnan.memora.backup.UploadRunGateTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

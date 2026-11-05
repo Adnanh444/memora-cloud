@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +22,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -34,17 +37,17 @@ import com.adnan.memora.ui.theme.LocalCleanStyle
 import com.adnan.memora.ui.theme.glass
 
 private enum class Tab(val route: String, val label: Int, val icon: ImageVector) {
-    Photos("photos", R.string.nav_photos, Icons.Filled.PhotoLibrary),
-    Cloud("cloud", R.string.nav_cloud, Icons.Filled.Cloud),
-    People("people", R.string.nav_people, Icons.Filled.People),
-    Library("library", R.string.nav_library, Icons.Filled.PhotoAlbum),
-    Settings("settings", R.string.nav_settings, Icons.Filled.Settings),
+    Photos("photos", R.string.rf_gallery, Icons.Outlined.PhotoLibrary),
+    Cloud("cloud", R.string.nav_cloud, Icons.Outlined.Cloud),
+    Library("library", R.string.rf_albums, Icons.Outlined.PhotoAlbum),
+    Settings("settings", R.string.nav_settings, Icons.Outlined.Settings),
 }
 
 @Composable
 fun MemoraApp() {
     val nav = rememberNavController()
     val gallery: GalleryViewModel = viewModel()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { gallery.refresh() }
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
     val showBar = Tab.entries.any { it.route == current }
@@ -95,13 +98,14 @@ fun MemoraApp() {
                 composable(Tab.Cloud.route) {
                     CloudScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onOpenStorage = { nav.navigate("telegram") })
                 }
-                composable(Tab.People.route) { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
+                composable("people") { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
                 composable(Tab.Library.route) {
                     LibraryScreen(
                         gallery,
                         onFolder = { name -> gallery.openFolderName = name; nav.navigate("folder") },
                         onBin = { nav.navigate("bin") },
                         onCloudBin = { nav.navigate("cloudbin") },
+                        onDuplicates = { nav.navigate("duplicates") },
                         onFavorites = { gallery.collectionKind = CollectionKind.FAVORITES; nav.navigate("collection") },
                         onArchive = { gallery.collectionKind = CollectionKind.ARCHIVE; nav.navigate("collection") },
                         onAlbum = { id ->
@@ -164,7 +168,12 @@ private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
                 NavigationBarItem(
                     selected = current == t.route,
                     onClick = { onSelect(t) },
-                    icon = { Icon(t.icon, null) },
+                    icon = { Icon(t.icon, null, tint = when (t) {
+                        Tab.Photos -> MaterialTheme.colorScheme.primary
+                        Tab.Cloud -> MaterialTheme.colorScheme.secondary
+                        Tab.Library -> MaterialTheme.colorScheme.tertiary
+                        Tab.Settings -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }) },
                     label = { Text(stringResource(t.label), maxLines = 1) },
                 )
             }

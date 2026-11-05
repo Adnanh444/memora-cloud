@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,7 @@ import coil.compose.AsyncImage
 import com.adnan.memora.R
 import com.adnan.memora.gallery.FolderInfo
 import com.adnan.memora.gallery.GalleryViewModel
+import com.adnan.memora.ui.theme.ThemeToggle
 import com.adnan.memora.ui.theme.GradientTitle
 import com.adnan.memora.ui.theme.brandBrush
 import com.adnan.memora.ui.theme.glass
@@ -35,6 +37,7 @@ fun LibraryScreen(
     onFolder: (String) -> Unit,
     onBin: () -> Unit,
     onCloudBin: () -> Unit,
+    onDuplicates: () -> Unit,
     onFavorites: () -> Unit,
     onArchive: () -> Unit,
     onAlbum: (String) -> Unit,
@@ -52,9 +55,14 @@ fun LibraryScreen(
         onConfirm = { vm.createAlbum(it) }, onDismiss = { newAlbum = false },
     )
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        GradientTitle(stringResource(R.string.nav_library), Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            GradientTitle(stringResource(R.string.rf_albums), Modifier.weight(1f))
+            ThemeToggle()
+        }
+        PinchGrid("albums", Modifier.weight(1f)) { columns, gesture ->
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            modifier = gesture,
+            columns = GridCells.Fixed(columns),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -100,6 +108,9 @@ fun LibraryScreen(
             }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.utilities)) }
             item(span = { GridItemSpan(maxLineSpan) }) {
+                LibraryRow(Icons.Outlined.ContentCopy, stringResource(R.string.dup_title), stringResource(R.string.dup_sub), onDuplicates)
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 LibraryRow(Icons.Filled.DeleteSweep, stringResource(R.string.fu_title), stringResource(R.string.fu_sub), onFreeUp)
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -113,6 +124,7 @@ fun LibraryScreen(
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.folders_section)) }
             items(folders, key = { it.name }) { f -> FolderCard(f) { onFolder(f.name) } }
         }
+        }
     }
 }
 
@@ -122,8 +134,14 @@ private fun LibraryRow(icon: androidx.compose.ui.graphics.vector.ImageVector, ti
         Modifier.fillMaxWidth().glass().clickable(onClick = onClick).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(brandBrush()), Alignment.Center) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary)
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), Alignment.Center) {
+            Icon(icon, null, tint = when (icon) {
+                Icons.Filled.Favorite -> MaterialTheme.colorScheme.error
+                Icons.Filled.Archive -> MaterialTheme.colorScheme.tertiary
+                Icons.Filled.CloudQueue -> MaterialTheme.colorScheme.secondary
+                Icons.Filled.Delete -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.primary
+            })
         }
         Spacer(Modifier.width(14.dp))
         Column {
@@ -177,6 +195,6 @@ fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenV
                 }
             }
         }
-        MediaGrid(list = list, vm = vm, onOpen = { i -> vm.openViewer(list, i); onOpenViewer() }, modifier = Modifier.fillMaxSize())
+        MediaGrid(list = list, vm = vm, onOpen = { i -> vm.openViewer(list, i); onOpenViewer() }, modifier = Modifier.fillMaxSize(), gridKey = "albums")
     }
 }

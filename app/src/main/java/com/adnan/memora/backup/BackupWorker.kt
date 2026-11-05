@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.*
 import com.adnan.memora.R
 import com.adnan.memora.gallery.BackupPhase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
@@ -53,14 +54,15 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
         BackupEngine.init(ctx)
         if (BackupSettings.load(ctx).paused) return Result.success()
         ensureChannel(ctx)
-        BackupEngine.scanAndEnqueue(ctx)
         try {
             val info = if (Build.VERSION.SDK_INT >= 29)
                 ForegroundInfo(NOTIF_ID, buildNotification(ctx, 0, 0, null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             else ForegroundInfo(NOTIF_ID, buildNotification(ctx, 0, 0, null))
             setForeground(info)
-        } catch (_: Throwable) {
-            // Android may refuse a foreground service from the background; the work still runs.
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (failure: Exception) {
+            android.util.Log.w("MemoraBackup", "Foreground service unavailable; scheduling retry", failure)
+            return Result.retry()
         }
         val nm = ctx.getSystemService(NotificationManager::class.java)
         return coroutineScope {
@@ -71,9 +73,14 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                     }
                 }
             }
-            val usable = BackupEngine.runUploads(ctx)
-            watcher.cancel()
-            if (usable) Result.success() else Result.retry()
+            try {
+                val usable = BackupEngine.runUploads(ctx)
+                if (usable && !BackupEngine.hasRetryableFailures(ctx)) Result.success() else Result.retry()
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (failure: Exception) {
+                android.util.Log.w("MemoraBackup", "Worker interrupted; scheduling retry", failure)
+                Result.retry()
+            } finally { watcher.cancel() }
         }
     }
 }
@@ -100,7 +107,8 @@ object BackupScheduler {
 
     fun runNow(ctx: Context, append: Boolean = false) {
         val cfg = BackupSettings.load(ctx)
-        val req = OneTimeWorkRequestBuilder<BackupWorker>().setConstraints(constraints(cfg)).build()
+        val req = OneTimeWorkRequestBuilder<BackupWorker>().setConstraints(constraints(cfg))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build()
         WorkManager.getInstance(ctx).enqueueUniqueWork(
             NOW, if (append) ExistingWorkPolicy.APPEND_OR_REPLACE else ExistingWorkPolicy.KEEP, req,
         )
