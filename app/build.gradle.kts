@@ -5,7 +5,8 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-// Telegram API credentials come from GitHub Secrets at build time. They are NEVER stored in the repository.
+// Optional local build credentials; normal CI leaves these empty for 0.9.2-style in-app setup.
+// Never commit real credentials. Manual credentials remain encrypted on the phone.
 val tgApiId = System.getenv("TELEGRAM_API_ID")?.trim()?.toIntOrNull() ?: 0
 val tgApiHash = System.getenv("TELEGRAM_API_HASH")?.trim()?.filter { it.isLetterOrDigit() } ?: ""
 
@@ -16,8 +17,8 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.9.2"
+        versionCode = 18
+        versionName = "0.9.4"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
         buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())

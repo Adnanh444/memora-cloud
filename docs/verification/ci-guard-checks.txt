@@ -1,5 +1,5 @@
-Local shell simulations of the release workflow guards; Gradle command stubbed.
-No real signing key, Telegram credentials or GitHub execution tested.
-PASS: missing API (exit 1)
-PASS: missing existing signing key (exit 1)
-PASS: formatted inputs / stub build command (exit 0)
+0.9.4 LOCAL SHELL/YAML SIMULATIONS ONLY. Gradle command stubbed. Fake signer file tests file-presence guard only, not real key validity. No owner keys/API/session/GitHub run tested.
+PASS: missing original signer; exit 1
+PASS: no API credentials, signer file present; exit 0
+PASS: stale API variables ignored, signer file present; exit 0
+PASS: artifact name/compression=0/APK CRC and SHA256 paths

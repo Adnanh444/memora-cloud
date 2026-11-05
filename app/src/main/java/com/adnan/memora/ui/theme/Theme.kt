@@ -81,7 +81,14 @@ fun MemoraTheme(content: @Composable () -> Unit) {
     }
     CompositionLocalProvider(LocalCleanStyle provides true, LocalAppearance provides appearance) {
         MaterialTheme(colorScheme = if (dark) Night else Day,
-            typography = fonts, shapes = Shapes(small = RoundedCornerShape(10.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp)), content = content)
+            typography = fonts, shapes = Shapes(small = RoundedCornerShape(10.dp), medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(24.dp))) {
+            // MaterialTheme supplies a palette but does not replace LocalContentColor.
+            // Transparent scaffolds/plain Columns otherwise inherit the default black,
+            // even when the dark palette correctly defines light onBackground text.
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+                content()
+            }
+        }
     }
 }
 

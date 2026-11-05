@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="lp_phone_coverage">Phone backup coverage</string>
+    <string name="lp_cloud_library">Cloud library</string>
+    <string name="lp_expand">Expand details</string>
+    <string name="lp_collapse">Collapse details</string>
+    <string name="lp_coverage_note">Readable phone media only. Rings show verified copies, not uploads still awaiting confirmation.</string>
+    <string name="lp_verified_ratio">%1$s: %2$d of %3$d verified</string>
+    <string name="lp_backed_up">%1$d verified</string>
+    <string name="lp_advanced_login">Advanced: use your own API credentials</string>
+    <string name="lp_login_setup">This build has no configured application credentials. Ask the app owner for a configured build, or use advanced setup below. Each user still signs into their own Telegram account.</string>
+    <string name="lp_recovery_partial">Recovery was interrupted. Already indexed items are kept. Retry to scan safely again; an incomplete scan is not a successful restore.</string>
+    <string name="lp_metadata_warning">Photo index restored, but album/archive metadata could not be restored. Retry recovery; do not delete your Telegram key note or metadata files.</string>
+    <string name="lp_restore_note">New phone or reinstall? Sign in to the same Telegram account, then restore an existing backup before creating a new storage. Originals are downloaded separately from Cloud.</string>
+    <string name="lp_search_scope">Search this collection</string>
+    <string name="lp_search_local">Search on phone</string>
+    <string name="lp_search_cloud">Search cloud index</string>
+    <string name="lp_search_note">Search names, folders, dates and media types. Visual AI and face grouping are not enabled in this build.</string>
+    <string name="lp_app_lock">App lock</string>
+    <string name="lp_unlock">Unlock with phone screen lock</string>
+    <string name="lp_lock_description">Protect Memora when opened and after 30 seconds in the background. Uses your phone PIN, pattern or password. Background backup can continue.</string>
+    <string name="lp_lock_on">On · screen captures blocked</string>
+    <string name="lp_lock_off">Off · optional device-credential protection</string>
+    <string name="lp_verify_to_count">Verify your Telegram account and destination to see backup coverage. A hidden cloud index does not mean your backups were deleted.</string>
+</resources>

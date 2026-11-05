@@ -353,7 +353,7 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             else stringResource(R.string.selected_count, selection.size),
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = { vm.selectAll(pool) }) { Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all)) }
+        IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         IconButton(onClick = {
             if (TelegramClient.get(ctx).storageStatus.value !is StorageStatus.Verified) {
                 Toast.makeText(ctx, R.string.bk_need_tg, Toast.LENGTH_LONG).show()
@@ -374,7 +374,7 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             Icon(Icons.Filled.Share, stringResource(R.string.share))
         }
         IconButton(onClick = { confirm = true }, enabled = selection.isNotEmpty()) {
-            Icon(Icons.Filled.Delete, stringResource(R.string.delete))
+            ActionGlyph(Icons.Filled.Delete, stringResource(R.string.delete))
         }
         OrgMenu(vm, enabled = selection.isNotEmpty(), onDone = { vm.clearSelection() }, pickItems = { vm.selectedAny() })
     }

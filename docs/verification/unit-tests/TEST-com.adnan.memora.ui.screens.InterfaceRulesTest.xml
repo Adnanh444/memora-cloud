@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.adnan.memora.ui.screens.InterfaceRulesTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-05T06:23:06" hostname="e2b.local" time="0.02">
+<testsuite name="com.adnan.memora.ui.screens.InterfaceRulesTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-05T09:13:37" hostname="e2b.local" time="0.001">
   <properties/>
-  <testcase name="selectAllOnEmptyBinIsEmpty" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.004"/>
-  <testcase name="selectAllCompletesPartialSelection" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.005"/>
-  <testcase name="emptyBinClearsSelection" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.004"/>
-  <testcase name="selectAllSelectsEveryVisibleItem" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.001"/>
-  <testcase name="selectionIsPrunedWhenItemsAreRemoved" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.001"/>
-  <testcase name="selectAllDoesNotCarryKeysFromAnotherBin" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.001"/>
-  <testcase name="selectAllTogglesFullSelectionOff" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.001"/>
+  <testcase name="selectAllOnEmptyBinIsEmpty" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.001"/>
+  <testcase name="selectAllCompletesPartialSelection" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
+  <testcase name="emptyBinClearsSelection" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
+  <testcase name="selectAllSelectsEveryVisibleItem" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
+  <testcase name="selectionIsPrunedWhenItemsAreRemoved" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
+  <testcase name="selectAllDoesNotCarryKeysFromAnotherBin" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
+  <testcase name="selectAllTogglesFullSelectionOff" classname="com.adnan.memora.ui.screens.InterfaceRulesTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

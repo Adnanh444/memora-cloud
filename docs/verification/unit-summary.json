@@ -21,8 +21,22 @@
     "skipped": "0"
   },
   {
+    "name": "com.adnan.memora.data.AppLockPolicyTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
     "name": "com.adnan.memora.backup.UploadWorkspaceTest",
     "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "com.adnan.memora.gallery.CoverageMathTest",
+    "tests": "10",
     "failures": "0",
     "errors": "0",
     "skipped": "0"

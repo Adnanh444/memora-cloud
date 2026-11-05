@@ -2,6 +2,8 @@
 """Execute the actual Room SQL against SQLite; no Android SDK or third-party modules needed."""
 from pathlib import Path
 import re
+import json
+import hashlib
 import sqlite3
 import unittest
 import xml.etree.ElementTree as ET
@@ -82,6 +84,55 @@ class SourceContracts(unittest.TestCase):
         ui = "\n".join(p.read_text() for p in (JAVA / "ui").rglob("*.kt"))
         self.assertNotIn("vm.setFavorite(", ui)
         self.assertIn(".filter { it.isFavorite }", (JAVA / "gallery/GalleryViewModel.kt").read_text())
+
+
+class RetainedInterfaceContracts(unittest.TestCase):
+    def test_polish_labels_have_bengali_parity(self):
+        def names(folder):
+            return {n.get("name") for n in ET.parse(ROOT / f"app/src/main/res/{folder}/polish.xml").getroot()}
+        self.assertEqual(names("values"), names("values-bn"))
+
+    def test_telegram_engines_and_screens_match_delivered_0_9_2(self):
+        baseline = json.loads((ROOT / "docs/verification/telegram-0.9.2-baseline.json").read_text())
+        self.assertEqual(len(baseline), 9)
+        for path, expected in baseline.items():
+            with self.subTest(path=path):
+                self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), expected)
+
+    def test_manual_credentials_are_directly_available_not_advanced_only(self):
+        screen = (JAVA / "ui/screens/TelegramScreen.kt").read_text()
+        self.assertIn("is TgAuth.NeedCredentials -> CredentialsStep", screen)
+        self.assertNotIn("advancedSetup", screen)
+        config = (JAVA / "telegram/TelegramConfig.kt").read_text()
+        self.assertIn("SecureKeys.loadApiCredentials(ctx)", config)
+
+    def test_ci_requires_original_signer_but_no_api_secrets(self):
+        workflow = (ROOT / ".github/workflows/build.yml").read_text()
+        self.assertNotIn("TELEGRAM_API_ID", workflow)
+        self.assertNotIn("TELEGRAM_API_HASH", workflow)
+        self.assertIn('if [ ! -s "${KEYSTORE_FILE:-}" ]; then', workflow)
+        self.assertIn("gradle testDebugUnitTest assembleRelease", workflow)
+
+    def test_logout_does_not_erase_saved_api_identity(self):
+        source = (JAVA / "telegram/TelegramClient.kt").read_text()
+        logout = source.split("    fun logOut()", 1)[1].split("    private fun loadMe()", 1)[0]
+        self.assertNotIn("clearApiCredentials", logout)
+
+    def test_utility_grid_has_four_tiles(self):
+        library = (JAVA / "ui/screens/LibraryScreen.kt").read_text()
+        self.assertEqual(library.count("UtilityTile(Icons."), 4)
+
+    def test_optional_lock_uses_system_credential_not_stored_custom_pin(self):
+        lock = (JAVA / "ui/AppLockGate.kt").read_text()
+        self.assertIn("createConfirmDeviceCredentialIntent", lock)
+        self.assertIn("SecureFlagPolicy.SecureOn", lock)
+        self.assertIn("AppLockPolicy.afterBackground", lock)
+
+    def test_dark_mode_root_has_explicit_content_color(self):
+        theme = (JAVA / "ui/theme/Theme.kt").read_text()
+        app = (JAVA / "ui/MemoraApp.kt").read_text()
+        self.assertIn("LocalContentColor provides MaterialTheme.colorScheme.onBackground", theme)
+        self.assertIn("contentColor = MaterialTheme.colorScheme.onBackground", app)
 
 
 if __name__ == "__main__":

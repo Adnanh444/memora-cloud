@@ -1,19 +1,40 @@
-Sandbox debug verification APK (not a production update)
-Size bytes: 41759697
-Size MiB: 39.825
-SHA256: 24d37a753a16e7c2616625269880251fe43058b071a6f2f8cee9974847bfe980
-ABI: ['arm64-v8a']
-ZIP CRC: PASS
-Embedded font license and notice: PASS
-No merged MANAGE_MEDIA/all-files permission: PASS
-Owner Telegram API credentials: NOT PROVIDED
-Owner signing key: NOT PROVIDED; sandbox debug key only
+0.9.4 SANDBOX APK VERIFICATION ONLY
+Both variants use sandbox debug signing; no owner key/session/phone test. Neither is offered as an update APK. API fields are deliberately empty for in-app setup, as required by the selected workflow.
 
-package: name='com.adnan.memora' versionCode='16' versionName='0.9.2' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
+DEBUG
+{
+  "bytes": 41775436,
+  "MiB": 39.84,
+  "sha256": "0475ad6fe55fcd4c3ad981e37c32b8766966bf1cc6937926151092a6e6adc62a"
+}
+package: name='com.adnan.memora' versionCode='18' versionName='0.9.4' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
 sdkVersion:'26'
 targetSdkVersion:'34'
 native-code: 'arm64-v8a'
+ZIP CRC/font license/no special media permission: PASS
+BuildConfig API ID=0/hash empty: intentional manual-setup build, PASS
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
 
+
+RELEASE
+{
+  "bytes": 25397299,
+  "MiB": 24.221,
+  "sha256": "ea07fbd28157f8145a99027b3ee664ae9036cac84ba7694879637d6ad46d4296"
+}
+package: name='com.adnan.memora' versionCode='18' versionName='0.9.4' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
+sdkVersion:'26'
+targetSdkVersion:'34'
+native-code: 'arm64-v8a'
+ZIP CRC/font license/no special media permission: PASS
+BuildConfig API ID=0/hash empty: intentional manual-setup build, PASS
 Verifies
 Verified using v1 scheme (JAR signing): false
 Verified using v2 scheme (APK Signature Scheme v2): true

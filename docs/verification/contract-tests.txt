@@ -4,11 +4,19 @@ test_normal_retry_cannot_release_uncertain (__main__.QueueSafety.test_normal_ret
 test_only_bounded_known_failures_request_worker_retry (__main__.QueueSafety.test_only_bounded_known_failures_request_worker_retry) ... ok
 test_restart_only_resets_pre_send_uploading (__main__.QueueSafety.test_restart_only_resets_pre_send_uploading) ... ok
 test_uncertain_requires_its_explicit_release_query (__main__.QueueSafety.test_uncertain_requires_its_explicit_release_query) ... ok
+test_ci_requires_original_signer_but_no_api_secrets (__main__.RetainedInterfaceContracts.test_ci_requires_original_signer_but_no_api_secrets) ... ok
+test_dark_mode_root_has_explicit_content_color (__main__.RetainedInterfaceContracts.test_dark_mode_root_has_explicit_content_color) ... ok
+test_logout_does_not_erase_saved_api_identity (__main__.RetainedInterfaceContracts.test_logout_does_not_erase_saved_api_identity) ... ok
+test_manual_credentials_are_directly_available_not_advanced_only (__main__.RetainedInterfaceContracts.test_manual_credentials_are_directly_available_not_advanced_only) ... ok
+test_optional_lock_uses_system_credential_not_stored_custom_pin (__main__.RetainedInterfaceContracts.test_optional_lock_uses_system_credential_not_stored_custom_pin) ... ok
+test_polish_labels_have_bengali_parity (__main__.RetainedInterfaceContracts.test_polish_labels_have_bengali_parity) ... ok
+test_telegram_engines_and_screens_match_delivered_0_9_2 (__main__.RetainedInterfaceContracts.test_telegram_engines_and_screens_match_delivered_0_9_2) ... ok
+test_utility_grid_has_four_tiles (__main__.RetainedInterfaceContracts.test_utility_grid_has_four_tiles) ... ok
 test_native_favorites_does_not_write_legacy_org_favorites (__main__.SourceContracts.test_native_favorites_does_not_write_legacy_org_favorites) ... ok
 test_no_special_media_management_permission (__main__.SourceContracts.test_no_special_media_management_permission) ... ok
 test_refresh_labels_are_localized (__main__.SourceContracts.test_refresh_labels_are_localized) ... ok
 
 ----------------------------------------------------------------------
-Ran 9 tests in 0.020s
+Ran 17 tests in 0.006s
 
 OK

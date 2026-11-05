@@ -2,6 +2,9 @@ package com.adnan.memora.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -56,6 +59,7 @@ fun MemoraApp() {
         AuroraBackground(Modifier.fillMaxSize())
         Scaffold(
             containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 AnimatedVisibility(
@@ -84,7 +88,7 @@ fun MemoraApp() {
                     PhotosScreen(
                         gallery,
                         onOpenViewer = { nav.navigate("viewer") },
-                        onSearch = { nav.navigate("search") },
+                        onSearch = { nav.navigate("search/phone") },
                         onBackup = { nav.navigate("backup") },
                         onSettings = {
                             gallery.clearSelection()
@@ -96,7 +100,7 @@ fun MemoraApp() {
                     )
                 }
                 composable(Tab.Cloud.route) {
-                    CloudScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onOpenStorage = { nav.navigate("telegram") })
+                    CloudScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onOpenStorage = { nav.navigate("telegram") }, onSearch = { nav.navigate("search/cloud") })
                 }
                 composable("people") { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
                 composable(Tab.Library.route) {
@@ -114,6 +118,7 @@ fun MemoraApp() {
                             nav.navigate("collection")
                         },
                         onFreeUp = { nav.navigate("freeup") },
+                        onSearch = { nav.navigate("search/phone") },
                     )
                 }
                 composable(Tab.Settings.route) {
@@ -142,15 +147,15 @@ fun MemoraApp() {
                 }
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
                 composable("viewer") { ViewerScreen(gallery, onBack = { nav.popBackStack() }) }
-                composable("search") {
-                    SearchScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
+                composable("search/{scope}") { searchEntry ->
+                    SearchScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, scope = searchEntry.arguments?.getString("scope") ?: "phone")
                 }
                 composable("folder") {
-                    FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
+                    FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, onSearch = { nav.navigate("search/folder") })
                 }
                 composable("bin") { BinScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("collection") {
-                    CollectionScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") })
+                    CollectionScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, onSearch = { nav.navigate("search/collection") })
                 }
                 composable("freeup") { FreeUpScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("cloudbin") { CloudBinScreen(gallery, onBack = { nav.popBackStack() }) }
@@ -161,53 +166,28 @@ fun MemoraApp() {
 
 @Composable
 private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
-    if (LocalCleanStyle.current) {
-        // Clean style: standard bottom navigation bar with labels (like Google Photos)
-        NavigationBar {
-            Tab.entries.forEach { t ->
-                NavigationBarItem(
-                    selected = current == t.route,
-                    onClick = { onSelect(t) },
-                    icon = { Icon(t.icon, null, tint = when (t) {
-                        Tab.Photos -> MaterialTheme.colorScheme.primary
-                        Tab.Cloud -> MaterialTheme.colorScheme.secondary
-                        Tab.Library -> MaterialTheme.colorScheme.tertiary
-                        Tab.Settings -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }) },
-                    label = { Text(stringResource(t.label), maxLines = 1) },
-                )
-            }
-        }
-        return
-    }
-    val shape = RoundedCornerShape(32.dp)
-    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp)) {
-        Row(
-            Modifier.fillMaxWidth().glass(shape).padding(6.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Tab.entries.forEach { t -> NavItem(t, selected = current == t.route) { onSelect(t) } }
-        }
-    }
-}
-
-@Composable
-private fun NavItem(t: Tab, selected: Boolean, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val tint by animateColorAsState(if (selected) cs.onPrimary else cs.onSurface.copy(alpha = 0.85f), label = "tint")
-    val pill = RoundedCornerShape(26.dp)
-    val bg = if (selected) Modifier.background(Brush.linearGradient(listOf(cs.primary, cs.secondary)), pill) else Modifier
-    Row(
-        Modifier.clip(pill).clickable(onClick = onClick).then(bg)
-            .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
-            .padding(horizontal = if (selected) 16.dp else 10.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(t.icon, stringResource(t.label), tint = tint)
-        AnimatedVisibility(selected) {
-            Text(stringResource(t.label), color = tint, fontWeight = FontWeight.SemiBold, maxLines = 1,
-                modifier = Modifier.padding(start = 8.dp))
+    val shape = RoundedCornerShape(24.dp)
+    Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 6.dp)
+        .glass(shape).padding(5.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Tab.entries.forEach { tab ->
+            val selected = current == tab.route
+            val accent = when (tab) {
+                Tab.Photos -> cs.primary; Tab.Cloud -> cs.secondary
+                Tab.Library -> cs.tertiary; Tab.Settings -> cs.onSurface
+            }
+            val fill by animateColorAsState(if (selected) accent.copy(alpha = .16f) else Color.Transparent, label = "tab-glass")
+            val outline by animateColorAsState(if (selected) accent.copy(alpha = .55f) else Color.Transparent, label = "tab-edge")
+            Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(fill)
+                .border(1.dp, outline, RoundedCornerShape(18.dp))
+                .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(tab) })
+                .heightIn(min = 58.dp).padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Icon(tab.icon, null, tint = if (selected) accent else cs.onSurfaceVariant, modifier = Modifier.size(23.dp))
+                Text(stringResource(tab.label), style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (selected) cs.onSurface else cs.onSurfaceVariant, maxLines = 1)
+            }
         }
     }
 }
