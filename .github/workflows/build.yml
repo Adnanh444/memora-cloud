@@ -19,6 +19,11 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           fi
+      - name: Verify source and contrast contracts
+        run: |
+          python3 tools/verify_contracts.py
+          python3 tools/verify_dark_contrast.py
+          python3 tools/check_integrity.py
       - name: Test and build with the existing release key
         run: |
           if [ ! -s "${KEYSTORE_FILE:-}" ]; then
@@ -40,7 +45,7 @@ jobs:
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: memora-apk-0.9.4
+          name: memora-apk-0.9.5
           compression-level: 0
           path: |
             app/build/outputs/apk/release/*.apk
