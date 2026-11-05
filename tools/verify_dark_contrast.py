@@ -63,6 +63,15 @@ class DarkContrastContracts(unittest.TestCase):
                 with self.subTest(theme=name, foreground=fg, background=bg):
                     self.assertGreaterEqual(ratio(colors[fg], colors[bg]), 4.5)
 
+    def test_counter_gold_blue_labels_remain_readable(self):
+        panel=(ROOT/'app/src/main/java/com/adnan/memora/ui/screens/CoveragePanel.kt').read_text()
+        colors=re.findall(r'val (photoTint|videoTint) = if \(dark\) Color\(0xFF([0-9A-F]+)\) else Color\(0xFF([0-9A-F]+)\)',panel)
+        self.assertEqual(len(colors),2)
+        for role,night,day in colors:
+            for theme,value in [('Night',night),('Day',day)]:
+                with self.subTest(role=role,theme=theme):
+                    self.assertGreaterEqual(ratio(int(value,16),palette(theme)['surfaceContainer']),4.5)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

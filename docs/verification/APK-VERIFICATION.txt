@@ -1,45 +1,8 @@
-0.9.4 SANDBOX APK VERIFICATION ONLY
-Both variants use sandbox debug signing; no owner key/session/phone test. Neither is offered as an update APK. API fields are deliberately empty for in-app setup, as required by the selected workflow.
+APK inspection (0.9.5 light build)
 
-DEBUG
-{
-  "bytes": 41775436,
-  "MiB": 39.84,
-  "sha256": "0475ad6fe55fcd4c3ad981e37c32b8766966bf1cc6937926151092a6e6adc62a"
-}
-package: name='com.adnan.memora' versionCode='18' versionName='0.9.4' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
-sdkVersion:'26'
-targetSdkVersion:'34'
-native-code: 'arm64-v8a'
-ZIP CRC/font license/no special media permission: PASS
-BuildConfig API ID=0/hash empty: intentional manual-setup build, PASS
-Verifies
-Verified using v1 scheme (JAR signing): false
-Verified using v2 scheme (APK Signature Scheme v2): true
-Verified using v3 scheme (APK Signature Scheme v3): false
-Verified using v3.1 scheme (APK Signature Scheme v3.1): false
-Verified using v4 scheme (APK Signature Scheme v4): false
-Verified for SourceStamp: false
-Number of signers: 1
-
-
-RELEASE
-{
-  "bytes": 25397299,
-  "MiB": 24.221,
-  "sha256": "ea07fbd28157f8145a99027b3ee664ae9036cac84ba7694879637d6ad46d4296"
-}
-package: name='com.adnan.memora' versionCode='18' versionName='0.9.4' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
-sdkVersion:'26'
-targetSdkVersion:'34'
-native-code: 'arm64-v8a'
-ZIP CRC/font license/no special media permission: PASS
-BuildConfig API ID=0/hash empty: intentional manual-setup build, PASS
-Verifies
-Verified using v1 scheme (JAR signing): false
-Verified using v2 scheme (APK Signature Scheme v2): true
-Verified using v3 scheme (APK Signature Scheme v3): false
-Verified using v3.1 scheme (APK Signature Scheme v3.1): false
-Verified using v4 scheme (APK Signature Scheme v4): false
-Verified for SourceStamp: false
-Number of signers: 1
+debug: 44799864 bytes, 42.724 MiB, sha256 18a38626de7b637153442750be388db15dba39a30b9fe4cb1d076d1656a83ff6, minSdk 26, targetSdk 34, signer cdc7eb192589a3633c3304a97ab34b10f3029584dda94b6615252b21e0e0cecb
+  permissions: android.permission.INTERNET, android.permission.READ_MEDIA_IMAGES, android.permission.READ_MEDIA_VIDEO, android.permission.READ_MEDIA_VISUAL_USER_SELECTED, android.permission.READ_EXTERNAL_STORAGE (maxSdk 32), android.permission.WRITE_EXTERNAL_STORAGE (maxSdk 28), android.permission.POST_NOTIFICATIONS, android.permission.FOREGROUND_SERVICE, android.permission.FOREGROUND_SERVICE_DATA_SYNC, android.permission.WAKE_LOCK, android.permission.ACCESS_NETWORK_STATE, android.permission.RECEIVE_BOOT_COMPLETED, com.adnan.memora.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+  native: lib/arm64-v8a/libandroidx.graphics.path.so, lib/arm64-v8a/libtdjni.so
+release: 26127280 bytes, 24.917 MiB, sha256 3345156c520964e3d30cf8e3e292c7641b32ce92cce0f04b5da9ea2cad0117a9, minSdk 26, targetSdk 34, signer cdc7eb192589a3633c3304a97ab34b10f3029584dda94b6615252b21e0e0cecb
+  permissions: android.permission.INTERNET, android.permission.READ_MEDIA_IMAGES, android.permission.READ_MEDIA_VIDEO, android.permission.READ_MEDIA_VISUAL_USER_SELECTED, android.permission.READ_EXTERNAL_STORAGE (maxSdk 32), android.permission.WRITE_EXTERNAL_STORAGE (maxSdk 28), android.permission.POST_NOTIFICATIONS, android.permission.FOREGROUND_SERVICE, android.permission.FOREGROUND_SERVICE_DATA_SYNC, android.permission.WAKE_LOCK, android.permission.ACCESS_NETWORK_STATE, android.permission.RECEIVE_BOOT_COMPLETED, com.adnan.memora.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+  native: lib/arm64-v8a/libandroidx.graphics.path.so, lib/arm64-v8a/libtdjni.so

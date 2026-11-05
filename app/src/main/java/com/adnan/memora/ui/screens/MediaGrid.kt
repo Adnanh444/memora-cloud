@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import com.adnan.memora.R
 import com.adnan.memora.backup.BackupEngine
@@ -348,11 +349,7 @@ fun SelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
         IconButton(onClick = { vm.clearSelection() }) {
             Icon(Icons.Filled.Close, stringResource(R.string.clear_selection))
         }
-        Text(
-            if (selection.isEmpty()) stringResource(R.string.select_items)
-            else stringResource(R.string.selected_count, selection.size),
-            style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
-        )
+        SelectionCount(selection.size, Modifier.weight(1f))
         IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         IconButton(onClick = {
             if (TelegramClient.get(ctx).storageStatus.value !is StorageStatus.Verified) {

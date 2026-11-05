@@ -35,5 +35,16 @@ class MemoraApplication : Application(), ImageLoaderFactory {
             add(com.adnan.memora.cloud.CloudFetcher.Factory(this@MemoraApplication))
         }
         .crossfade(true)
+        // Bounded caches: the user's ceiling in Settings halves between our previews and Telegram's
+        // own media cache, so a long cloud session cannot grow without limit.
+        .memoryCache {
+            coil.memory.MemoryCache.Builder(this@MemoraApplication).maxSizePercent(0.12).build()
+        }
+        .diskCache {
+            coil.disk.DiskCache.Builder()
+                .directory(cacheDir.resolve("image_cache"))
+                .maxSizeBytes(com.adnan.memora.data.NetworkPolicy.imageDiskBytes(this@MemoraApplication))
+                .build()
+        }
         .build()
 }

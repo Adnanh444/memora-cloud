@@ -1,10 +1,9 @@
-0.9.4 comparison against delivered 0.9.2 ZIP SHA256 60e6e52d42249fcb66d762ced9c42510ba9da396f0eb45d03b2f1ba05a8d6398
+0.9.5 protected source against delivered 0.9.2 baseline (not all UI/build files).
 {
-  "UNCHANGED": 33,
-  "AUTHORIZED_CHANGE": 1,
-  "NEW_HELPER": 2
+  "UNCHANGED": 31,
+  "AUTHORIZED_CHANGE": 3,
+  "NEW_HELPER": 7
 }
-Original signingConfigs and release signing selection: BYTE-IDENTICAL
-Entire Telegram package + BackupEngine + RecoveryEngine + TelegramScreen + RecoveryScreen (9 files): BYTE-IDENTICAL to 0.9.2
-Room schema 2 / MediaActions / Manifest / ProGuard / original importer and keygen: unchanged
-MainActivity retains 0.9.3 local AppLock integration; CoverageMath and AppLockPolicy remain new helpers. This scoped inventory is not a claim that all UI/build/docs are unchanged.
+Original signingConfigs/release signing selection: BYTE-IDENTICAL
+TelegramClient after removing only the archive/mute helper: BYTE-IDENTICAL to 0.9.2; seven other legacy core files byte-identical. TelegramScreen warning/action UI differs deliberately.
+BackupEngine/RecoveryEngine/API config/secure keys/schema/metadata/download original core retained. ProGuard adds only ONNX JNI keep boundary. No owner keys/session/phone test or production isolation claim.

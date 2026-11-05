@@ -15,11 +15,25 @@
     <string name="lp_search_scope">এই সংগ্রহে খুঁজুন</string>
     <string name="lp_search_local">ফোনে খুঁজুন</string>
     <string name="lp_search_cloud">ক্লাউড সূচিতে খুঁজুন</string>
-    <string name="lp_search_note">নাম, ফোল্ডার, তারিখ ও মিডিয়ার ধরন খুঁজুন। এই বিল্ডে ভিজুয়াল AI ও মুখের ভিত্তিতে গ্রুপ করা চালু নেই।</string>
+    <string name="lp_search_note">নাম, ফোল্ডার, তারিখ ও মিডিয়ার ধরন খুঁজুন। এই সংস্করণে কোনো AI বা ছবি বিশ্লেষণ নেই; ক্লাউডে শুধু মেটাডেটা অনুসন্ধান হবে।</string>
     <string name="lp_app_lock">অ্যাপ লক</string>
     <string name="lp_unlock">ফোনের স্ক্রিন লক দিয়ে খুলুন</string>
     <string name="lp_lock_description">অ্যাপ খোলার সময় এবং ব্যাকগ্রাউন্ডে ৩০ সেকেন্ড থাকার পর মেমোরাকে সুরক্ষিত রাখুন। ফোনের পিন, প্যাটার্ন বা পাসওয়ার্ড ব্যবহার হবে। ব্যাকগ্রাউন্ড ব্যাকআপ চলতে পারে।</string>
     <string name="lp_lock_on">চালু · স্ক্রিনশট বন্ধ</string>
     <string name="lp_lock_off">বন্ধ · চাইলে ফোনের স্ক্রিন লক দিয়ে সুরক্ষিত করুন</string>
     <string name="lp_verify_to_count">ব্যাকআপের অবস্থা দেখতে টেলিগ্রাম অ্যাকাউন্ট ও স্টোরেজ যাচাই করুন। ক্লাউড সূচি লুকানো মানে ব্যাকআপ মুছে যাওয়া নয়।</string>
+    <string name="set_cloud_mobile">মোবাইল ডেটায় ক্লাউড প্রিভিউ</string>
+    <string name="set_on">অনুমোদিত</string>
+    <string name="set_off_saves_data">বন্ধ — ডেটা বাঁচে</string>
+    <string name="set_cache_limit">প্রিভিউ ক্যাশের সীমা</string>
+    <string name="set_clear_cache">প্রিভিউ ক্যাশ মুছুন</string>
+    <string name="set_cache_used">%1$d MB ব্যবহৃত</string>
+    <string name="tg_paste">পেস্ট</string>
+    <string name="tg_id_invalid">API ID অবশ্যই my.telegram.org থেকে পাওয়া নম্বর হতে হবে</string>
+    <string name="tg_hash_invalid">API হ্যাশ ৩২ অক্ষরের</string>
+    <string name="tg_cred_how">এগুলো কোথায় পাব?</string>
+    <string name="tg_phone_note">কোড টেলিগ্রাম এই নম্বরের অ্যাকাউন্টে পাঠায়, আমাদের কাছে নয়।</string>
+    <string name="tg_password_body">আপনার অ্যাকাউন্টে দুই-ধাপ যাচাই চালু আছে। সেই পাসওয়ার্ড দিন; এটি ডিভাইস ছাড়ে না।</string>
+    <string name="tg_show_password">পাসওয়ার্ড দেখুন</string>
+    <string name="tg_hide_password">পাসওয়ার্ড লুকান</string>
 </resources>

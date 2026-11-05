@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
@@ -55,6 +56,9 @@ internal class CollapsingHeader(private val threshold: Float) {
 internal fun CoveragePanel(photos: Int, videos: Int, photoVerified: Int?, videoVerified: Int?, compact: Boolean, onToggle: () -> Unit, phoneLibrary: Boolean = photoVerified != null) {
     val cs = MaterialTheme.colorScheme
     val phone = phoneLibrary
+    val dark = cs.background.luminance() < .5f
+    val photoTint = if (dark) Color(0xFFFFC436) else Color(0xFF936400)
+    val videoTint = if (dark) Color(0xFF80B0FF) else Color(0xFF1649C6)
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
         .background(cs.surfaceContainer.copy(alpha = .8f), RoundedCornerShape(20.dp))
         .border(1.dp, cs.outlineVariant, RoundedCornerShape(20.dp)).animateContentSize()) {
@@ -69,8 +73,8 @@ internal fun CoveragePanel(photos: Int, videos: Int, photoVerified: Int?, videoV
         }
         AnimatedContent(targetState = compact, label = "coverage-layout") { small ->
             Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CoverageCounter(stringResource(R.string.cat_photos), photos, photoVerified, cs.primary, small, Modifier.weight(1f))
-                CoverageCounter(stringResource(R.string.cat_videos), videos, videoVerified, cs.tertiary, small, Modifier.weight(1f))
+                CoverageCounter(stringResource(R.string.cat_photos), photos, photoVerified, photoTint, small, Modifier.weight(1f))
+                CoverageCounter(stringResource(R.string.cat_videos), videos, videoVerified, videoTint, small, Modifier.weight(1f))
             }
         }
         if (phone && !compact) Text(stringResource(if (photoVerified != null) R.string.lp_coverage_note else R.string.lp_verify_to_count), style = MaterialTheme.typography.bodySmall,
@@ -94,12 +98,12 @@ private fun CoverageCounter(title: String, total: Int, verified: Int?, tint: Col
             Spacer(Modifier.height(6.dp))
             if (verified != null) LinearProgressIndicator(progress = { animated }, modifier = Modifier.fillMaxWidth().height(4.dp), color = tint,
                 trackColor = tint.copy(alpha = .12f))
-            else Box(Modifier.fillMaxWidth().height(3.dp).background(tint.copy(alpha = .65f), RoundedCornerShape(4.dp)))
+            else Box(Modifier.fillMaxWidth().height(3.dp).background(tint, RoundedCornerShape(4.dp)))
         } else {
             Box(Modifier.size(106.dp), contentAlignment = Alignment.Center) {
                 if (verified != null) CircularProgressIndicator(progress = { animated }, modifier = Modifier.fillMaxSize(), color = tint,
                     trackColor = tint.copy(alpha = .13f), strokeWidth = 6.dp)
-                else Box(Modifier.fillMaxSize().border(5.dp, tint.copy(alpha = .7f), CircleShape))
+                else Box(Modifier.fillMaxSize().border(5.dp, tint, CircleShape))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(number.format(total), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text(title, style = MaterialTheme.typography.labelMedium, color = tint)

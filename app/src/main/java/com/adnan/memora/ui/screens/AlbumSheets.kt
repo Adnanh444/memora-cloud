@@ -84,13 +84,13 @@ fun AlbumNameSheet(title: String, initial: String, action: String, onConfirm: (S
 @Composable
 fun OrgMenu(
     vm: GalleryViewModel, enabled: Boolean = true, tint: Color = Color.Unspecified,
-    onDone: () -> Unit = {}, pickItems: () -> List<LocalMedia>,
+    onDone: () -> Unit = {}, pickItems: () -> List<LocalMedia>, modifier: Modifier = Modifier,
 ) {
     var menu by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf(false) }
     val favoriteAction = rememberPhoneFavoriteAction { vm.refresh() }
     val albums by vm.albums.collectAsState()
-    Box {
+    Box(modifier) {
         IconButton(onClick = { menu = true }, enabled = enabled) {
             Icon(Icons.Filled.MoreVert, stringResource(R.string.og_more), tint = tint)
         }

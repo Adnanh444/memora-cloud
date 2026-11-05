@@ -1,12 +1,70 @@
 {
   "debug": {
-    "bytes": 41775436,
-    "MiB": 39.84,
-    "sha256": "0475ad6fe55fcd4c3ad981e37c32b8766966bf1cc6937926151092a6e6adc62a"
+    "bytes": 44799864,
+    "MiB": 42.724,
+    "sha256": "18a38626de7b637153442750be388db15dba39a30b9fe4cb1d076d1656a83ff6",
+    "min_sdk": "26",
+    "target_sdk": "34",
+    "permissions": [
+      "android.permission.INTERNET",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_MEDIA_VIDEO",
+      "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+      "android.permission.READ_EXTERNAL_STORAGE (maxSdk 32)",
+      "android.permission.WRITE_EXTERNAL_STORAGE (maxSdk 28)",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+      "android.permission.WAKE_LOCK",
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "com.adnan.memora.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "signer_sha256": "cdc7eb192589a3633c3304a97ab34b10f3029584dda94b6615252b21e0e0cecb",
+    "native_libraries": [
+      {
+        "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "bytes": 10096
+      },
+      {
+        "path": "lib/arm64-v8a/libtdjni.so",
+        "bytes": 22729264
+      }
+    ],
+    "debuggable": true
   },
   "release": {
-    "bytes": 25397299,
-    "MiB": 24.221,
-    "sha256": "ea07fbd28157f8145a99027b3ee664ae9036cac84ba7694879637d6ad46d4296"
+    "bytes": 26127280,
+    "MiB": 24.917,
+    "sha256": "3345156c520964e3d30cf8e3e292c7641b32ce92cce0f04b5da9ea2cad0117a9",
+    "min_sdk": "26",
+    "target_sdk": "34",
+    "permissions": [
+      "android.permission.INTERNET",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_MEDIA_VIDEO",
+      "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+      "android.permission.READ_EXTERNAL_STORAGE (maxSdk 32)",
+      "android.permission.WRITE_EXTERNAL_STORAGE (maxSdk 28)",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+      "android.permission.WAKE_LOCK",
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "com.adnan.memora.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "signer_sha256": "cdc7eb192589a3633c3304a97ab34b10f3029584dda94b6615252b21e0e0cecb",
+    "native_libraries": [
+      {
+        "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+        "bytes": 10096
+      },
+      {
+        "path": "lib/arm64-v8a/libtdjni.so",
+        "bytes": 22729264
+      }
+    ],
+    "debuggable": false
   }
 }

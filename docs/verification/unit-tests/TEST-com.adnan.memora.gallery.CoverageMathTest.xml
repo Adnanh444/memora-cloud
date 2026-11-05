@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.adnan.memora.gallery.CoverageMathTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-05T09:13:37" hostname="e2b.local" time="0.01">
+<testsuite name="com.adnan.memora.gallery.CoverageMathTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-05T13:14:39" hostname="e2b.local" time="0.011">
   <properties/>
   <testcase name="emptyLibraryNeverShowsFullBackup" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.002"/>
   <testcase name="downwardScrollExpands" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
-  <testcase name="totalsSplitPhotosAndVideos" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.001"/>
-  <testcase name="verifiedCopiesOnlyCountTheCorrespondingLocalItem" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.006"/>
-  <testcase name="progressIsBounded" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
+  <testcase name="totalsSplitPhotosAndVideos" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
+  <testcase name="verifiedCopiesOnlyCountTheCorrespondingLocalItem" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.003"/>
+  <testcase name="progressIsBounded" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.001"/>
   <testcase name="upwardScrollCollapses" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
   <testcase name="fractionUsesPhoneDenominator" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
   <testcase name="cloudOnlyCopiesDoNotInflatePhoneCoverage" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.001"/>
   <testcase name="smallScrollDoesNotFlicker" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
-  <testcase name="repeatedKeysDoNotInflateTotals" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.0"/>
+  <testcase name="repeatedKeysDoNotInflateTotals" classname="com.adnan.memora.gallery.CoverageMathTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

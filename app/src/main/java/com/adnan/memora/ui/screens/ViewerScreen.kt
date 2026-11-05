@@ -1,12 +1,10 @@
 package com.adnan.memora.ui.screens
 
-import android.content.ActivityNotFoundException
+import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.widget.MediaController
-import android.widget.VideoView
-import androidx.compose.ui.viewinterop.AndroidView
 import android.net.Uri
+import androidx.core.view.WindowCompat
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -82,12 +80,23 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
         return
     }
     val ctx = LocalContext.current
+    DisposableEffect(ctx) {
+        val window=(ctx as? Activity)?.window
+        val controller=window?.let { WindowCompat.getInsetsController(it,it.decorView) }
+        val oldStatus=controller?.isAppearanceLightStatusBars
+        val oldNavigation=controller?.isAppearanceLightNavigationBars
+        controller?.isAppearanceLightStatusBars=false;controller?.isAppearanceLightNavigationBars=false
+        onDispose {
+            oldStatus?.let {controller?.isAppearanceLightStatusBars=it}
+            oldNavigation?.let {controller?.isAppearanceLightNavigationBars=it}
+        }
+    }
     val pager = rememberPagerState(initialPage = vm.viewerStart.coerceIn(0, items.lastIndex)) { items.size }
     var chrome by remember { mutableStateOf(true) }
     var zoomed by remember { mutableStateOf(false) }
     var detailsOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var playingCloud by remember { mutableStateOf(false) }
+    var playingVideo by remember { mutableStateOf<LocalMedia?>(null) }
     val scope = rememberCoroutineScope()
     DisposableEffect(Unit) { onDispose { TelegramClient.get(ctx).releaseFullFiles() } }
     var heightPx by remember { mutableFloatStateOf(0f) }
@@ -139,7 +148,7 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                         AsyncImage(model = m.uri, contentDescription = m.name, contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize())
                         FilledIconButton(
-                            onClick = { if (CloudUri.isCloud(m.uri)) playingCloud = true else playVideo(ctx, m.uri, m.mime) },
+                            onClick = { playingVideo = m },
                             modifier = Modifier.size(72.dp),
                         ) {
                             Icon(Icons.Filled.PlayArrow, stringResource(R.string.play_video), Modifier.size(40.dp))
@@ -156,62 +165,39 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             }
         }
 
-        // top bar
+        // One narrow bottom toolbar; no controls obscure the top of the photo.
         AnimatedVisibility(
-            visible = chrome && !detailsOpen,
-            modifier = Modifier.align(Alignment.TopCenter),
-            enter = fadeIn(tween(220)) + slideInVertically(tween(260)) { -it },
-            exit = fadeOut(tween(160)) + slideOutVertically(tween(200)) { -it },
-        ) {
-            Row(
-                Modifier.fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)))
-                    .statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack, colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
-                }
-                Spacer(Modifier.weight(1f))
-                if (isCloud || summary.phase != BackupPhase.NOT_SET_UP) {
-                    val ok = isCloud || backup[current.key]?.state == BackupState.VERIFIED
-                    Icon(if (ok) Icons.Filled.CloudDone else Icons.Filled.CloudOff, null, tint = Color.White,
-                        modifier = Modifier.padding(end = 8.dp))
-                }
-                val isFav = current.isFavorite
-                if (!isCloud) IconButton(
-                    onClick = { favoriteAction(listOf(current), !isFav) },
-                    enabled = !isCloud && android.os.Build.VERSION.SDK_INT >= 30,
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                ) {
-                    Icon(
-                        if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        stringResource(if (isFav) R.string.og_unfavorite else R.string.og_favorite),
-                    )
-                }
-                OrgMenu(vm, tint = Color.White, pickItems = { listOf(current) })
-            }
-        }
-
-        // bottom action bar
-        AnimatedVisibility(
-            visible = chrome && !detailsOpen,
+            visible = chrome && !detailsOpen && playingVideo == null,
             modifier = Modifier.align(Alignment.BottomCenter),
-            enter = fadeIn(tween(220)) + slideInVertically(tween(260)) { it },
-            exit = fadeOut(tween(160)) + slideOutVertically(tween(200)) { it },
+            enter = fadeIn(tween(180)) + slideInVertically(tween(200)) { it },
+            exit = fadeOut(tween(150)),
         ) {
-            Row(
-                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 28.dp, vertical = 16.dp)
-                    .glass(RoundedCornerShape(32.dp)).padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                if (isCloud) BarAction(Icons.Filled.Download, R.string.cl_download) {
-                    CloudDownloader.start(ctx, listOf(current))
-                    android.widget.Toast.makeText(ctx, R.string.cl_downloading, android.widget.Toast.LENGTH_SHORT).show()
+            CompositionLocalProvider(LocalContentColor provides Color.White) {
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(18.dp)).background(Color(0xE61A222D)),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                    IconButton(onClick = {
+                        if (isCloud) CloudDownloader.start(ctx, listOf(current)) else shareMedia(ctx, listOf(current))
+                    }, modifier = Modifier.weight(1f)) {
+                        Icon(if (isCloud) Icons.Filled.Download else Icons.Filled.Share,
+                            stringResource(if (isCloud) R.string.cl_download else R.string.share))
+                    }
+                    IconButton(onClick = { detailsOpen = true }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.Info, stringResource(R.string.details))
+                    }
+                    if (!isCloud) IconButton(onClick = { favoriteAction(listOf(current), !current.isFavorite) },
+                        enabled = android.os.Build.VERSION.SDK_INT >= 30, modifier = Modifier.weight(1f)) {
+                        Icon(if (current.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            stringResource(if (current.isFavorite) R.string.og_unfavorite else R.string.og_favorite))
+                    }
+                    IconButton(onClick = { confirmDelete = true }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Filled.Delete, stringResource(R.string.delete), tint = Color(0xFFFFB5BE))
+                    }
+                    OrgMenu(vm, tint = Color.White, pickItems = { listOf(current) }, modifier = Modifier.weight(1f))
                 }
-                else BarAction(Icons.Filled.Share, R.string.share) { shareMedia(ctx, listOf(current)) }
-                BarAction(Icons.Filled.Info, R.string.details) { detailsOpen = true }
-                BarAction(Icons.Filled.Delete, R.string.delete) { confirmDelete = true }
             }
         }
 
@@ -254,23 +240,7 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             }
         }
 
-        if (playingCloud && isCloud) CloudVideoPlayer(current) { playingCloud = false }
-    }
-}
-
-private fun playVideo(ctx: Context, uri: Uri, mime: String) {
-    val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    try { ctx.startActivity(i) } catch (_: ActivityNotFoundException) {}
-}
-
-@Composable
-private fun BarAction(icon: ImageVector, label: Int, onClick: () -> Unit) {
-    Column(
-        Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, stringResource(label))
-        Text(stringResource(label), style = MaterialTheme.typography.labelSmall)
+        playingVideo?.let { video -> MediaVideoPlayer(video) { playingVideo = null } }
     }
 }
 
@@ -282,6 +252,7 @@ private fun ZoomableImage(
     showSpinner: Boolean = false,
 ) {
     var loaded by remember(model) { mutableStateOf(false) }
+    var imageFailed by remember(model) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -341,8 +312,9 @@ private fun ZoomableImage(
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(model = model, contentDescription = contentDescription, contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true })
-        if (showSpinner && !loaded) CircularProgressIndicator(color = Color.White)
+            modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true; imageFailed = false }, onError = { imageFailed = true })
+        if (showSpinner && !loaded && !imageFailed) CircularProgressIndicator(color = Color.White)
+        if (imageFailed) Text(stringResource(R.string.mx_image_error), color = Color.White, modifier = Modifier.padding(24.dp))
     }
 }
 
@@ -443,53 +415,6 @@ private fun DetailRow(icon: ImageVector, title: String, subtitle: String?) {
     }
 }
 
-/**
- * Plays a cloud video inside the app. The video is fetched into a TEMPORARY app-private cache,
- * played, and removed again when you leave. Nothing is saved to the gallery unless you tap Download.
- */
+/** Shared in-app player is also used by cloud-bin previews. */
 @Composable
-internal fun CloudVideoPlayer(m: LocalMedia, onClose: () -> Unit) {
-    val ctx = LocalContext.current
-    var path by remember(m.key) { mutableStateOf<String?>(null) }
-    var progress by remember(m.key) { mutableFloatStateOf(0f) }
-    var failed by remember(m.key) { mutableStateOf(false) }
-    BackHandler { onClose() }
-    LaunchedEffect(m.key) {
-        val ids = CloudUri.ids(m.uri)
-        path = if (ids == null) null else TelegramClient.get(ctx).cloudFullPath(ids.first, ids.second) { progress = it }
-        if (path == null) failed = true
-    }
-    DisposableEffect(m.key) { onDispose { TelegramClient.get(ctx).releaseFullFiles() } }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        val p = path
-        if (p != null) {
-            AndroidView(
-                factory = { c ->
-                    VideoView(c).apply {
-                        val mc = MediaController(c)
-                        mc.setAnchorView(this)
-                        setMediaController(mc)
-                        setVideoPath(p)
-                        setOnPreparedListener { start() }
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (failed) {
-                    Text(stringResource(R.string.cl_video_failed), color = Color.White)
-                } else {
-                    CircularProgressIndicator(progress = { progress }, color = Color.White)
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.cl_preparing_video, (progress * 100).toInt()), color = Color.White)
-                }
-            }
-        }
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.statusBarsPadding().padding(4.dp).align(Alignment.TopStart),
-            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
-    }
-}
+internal fun CloudVideoPlayer(m: LocalMedia, onClose: () -> Unit) = MediaVideoPlayer(m, onClose)

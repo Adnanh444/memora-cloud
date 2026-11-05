@@ -1,10 +1,11 @@
 test_body_and_action_palette_pairs_meet_4_5_to_1 (__main__.DarkContrastContracts.test_body_and_action_palette_pairs_meet_4_5_to_1) ... ok
+test_counter_gold_blue_labels_remain_readable (__main__.DarkContrastContracts.test_counter_gold_blue_labels_remain_readable) ... ok
 test_day_general_text_remains_dark (__main__.DarkContrastContracts.test_day_general_text_remains_dark) ... ok
 test_night_general_text_is_light (__main__.DarkContrastContracts.test_night_general_text_is_light) ... ok
 test_theme_sets_default_content_color_inside_material_theme (__main__.DarkContrastContracts.test_theme_sets_default_content_color_inside_material_theme) ... ok
 test_transparent_scaffold_explicitly_inherits_readable_text (__main__.DarkContrastContracts.test_transparent_scaffold_explicitly_inherits_readable_text) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.002s
+Ran 6 tests in 0.004s
 
 OK

@@ -329,6 +329,31 @@ class TelegramClient private constructor(private val app: Context) {
         return if (timeoutMs == null) request() else withTimeoutOrNull(timeoutMs) { request() }
     }
 
+    /** Explicit, non-destructive convenience action. Does NOT prevent Telegram-side deletion. */
+    suspend fun archiveMuteBackupChannel(): Pair<Boolean, Boolean> {
+        val target = storage.value ?: return false to false
+        fun sameDestination() = auth.value is TgAuth.Ready && storageStatus.value is StorageStatus.Verified &&
+            storage.value?.chatId == target.chatId && storage.value?.storageId == target.storageId
+        if (!sameDestination()) return false to false
+        val get = TdApi.GetChat().apply { chatId = target.chatId }
+        val chat = sendAndWait(get, 30_000L) as? TdApi.Chat ?: return false to false
+        if (!sameDestination()) return false to false
+        // Preserve every other notification choice from the current remote settings.
+        val notification = chat.notificationSettings ?: return false to false
+        notification.useDefaultMuteFor = false
+        notification.muteFor = Int.MAX_VALUE
+        val mute = TdApi.SetChatNotificationSettings().apply {
+            chatId = target.chatId; notificationSettings = notification
+        }
+        val muted = sendAndWait(mute, 30_000L) is TdApi.Ok
+        if (!sameDestination()) return muted to false
+        val archive = TdApi.AddChatToList().apply {
+            chatId = target.chatId; chatList = TdApi.ChatListArchive()
+        }
+        val archived = sendAndWait(archive, 30_000L) is TdApi.Ok
+        return muted to archived
+    }
+
     /** Waits until Telegram is signed in and the storage channel is verified. */
     suspend fun awaitUsable(timeoutMs: Long = 60_000): Boolean {
         start()

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.adnan.memora.ui.screens.GridDensityTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-05T09:13:37" hostname="e2b.local" time="0.003">
+<testsuite name="com.adnan.memora.ui.screens.GridDensityTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-05T13:14:39" hostname="e2b.local" time="0.004">
   <properties/>
-  <testcase name="cannotExceedEightColumns" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
+  <testcase name="cannotExceedEightColumns" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.001"/>
   <testcase name="spreadFingersRemovesColumns" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
   <testcase name="defaultIsTwoColumns" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
-  <testcase name="tinyWindowHasAtLeastOneColumn" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.001"/>
+  <testcase name="tinyWindowHasAtLeastOneColumn" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
   <testcase name="pinchTogetherAddsColumns" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
-  <testcase name="columnBoundsAreEnforced" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
+  <testcase name="columnBoundsAreEnforced" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.001"/>
   <testcase name="smallMotionDoesNotChangeDensity" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
   <testcase name="canZoomToOneColumn" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>
   <testcase name="narrowWindowClampsWithoutChangingSavedValue" classname="com.adnan.memora.ui.screens.GridDensityTest" time="0.0"/>

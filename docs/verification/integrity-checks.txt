@@ -1,0 +1,2 @@
+PASS: 37 backend/protected files match the delivery inventory
+The CSV also records baseline hashes; AUTHORIZED_CHANGE is not a byte-identical-backend claim.

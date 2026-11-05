@@ -1,0 +1,22 @@
+[
+  {
+    "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+    "bytes": 10096,
+    "pt_load_alignments": [
+      16384,
+      16384,
+      16384
+    ],
+    "all_at_least_16KiB": true
+  },
+  {
+    "path": "lib/arm64-v8a/libtdjni.so",
+    "bytes": 22729264,
+    "pt_load_alignments": [
+      16384,
+      16384,
+      16384
+    ],
+    "all_at_least_16KiB": true
+  }
+]

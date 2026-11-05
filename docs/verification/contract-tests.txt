@@ -1,3 +1,12 @@
+test_ai_is_opt_in_private_and_camera_only (__main__.MediaAiContracts.test_ai_is_opt_in_private_and_camera_only) ... ok
+test_both_gallery_and_cloud_use_in_app_player (__main__.MediaAiContracts.test_both_gallery_and_cloud_use_in_app_player) ... ok
+test_cancelled_google_tasks_do_not_use_recycled_bitmap (__main__.MediaAiContracts.test_cancelled_google_tasks_do_not_use_recycled_bitmap) ... ok
+test_counters_have_separate_persisted_visibility (__main__.MediaAiContracts.test_counters_have_separate_persisted_visibility) ... ok
+test_model_registry_is_pinned_and_downloads_verified (__main__.MediaAiContracts.test_model_registry_is_pinned_and_downloads_verified) ... ok
+test_new_labels_have_bengali_parity (__main__.MediaAiContracts.test_new_labels_have_bengali_parity) ... ok
+test_same_counter_tint_drives_ring_and_line (__main__.MediaAiContracts.test_same_counter_tint_drives_ring_and_line) ... ok
+test_selection_count_is_compact_and_viewer_controls_bottom_only (__main__.MediaAiContracts.test_selection_count_is_compact_and_viewer_controls_bottom_only) ... ok
+test_split_group_does_not_show_a_different_person_thumbnail (__main__.MediaAiContracts.test_split_group_does_not_show_a_different_person_thumbnail) ... ok
 test_automatic_queue_never_resends_uncertain (__main__.QueueSafety.test_automatic_queue_never_resends_uncertain) ... ok
 test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded (__main__.QueueSafety.test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded) ... ok
 test_normal_retry_cannot_release_uncertain (__main__.QueueSafety.test_normal_retry_cannot_release_uncertain) ... ok
@@ -10,13 +19,13 @@ test_logout_does_not_erase_saved_api_identity (__main__.RetainedInterfaceContrac
 test_manual_credentials_are_directly_available_not_advanced_only (__main__.RetainedInterfaceContracts.test_manual_credentials_are_directly_available_not_advanced_only) ... ok
 test_optional_lock_uses_system_credential_not_stored_custom_pin (__main__.RetainedInterfaceContracts.test_optional_lock_uses_system_credential_not_stored_custom_pin) ... ok
 test_polish_labels_have_bengali_parity (__main__.RetainedInterfaceContracts.test_polish_labels_have_bengali_parity) ... ok
-test_telegram_engines_and_screens_match_delivered_0_9_2 (__main__.RetainedInterfaceContracts.test_telegram_engines_and_screens_match_delivered_0_9_2) ... ok
+test_telegram_core_matches_0_9_2_except_additive_channel_action (__main__.RetainedInterfaceContracts.test_telegram_core_matches_0_9_2_except_additive_channel_action) ... ok
 test_utility_grid_has_four_tiles (__main__.RetainedInterfaceContracts.test_utility_grid_has_four_tiles) ... ok
 test_native_favorites_does_not_write_legacy_org_favorites (__main__.SourceContracts.test_native_favorites_does_not_write_legacy_org_favorites) ... ok
 test_no_special_media_management_permission (__main__.SourceContracts.test_no_special_media_management_permission) ... ok
 test_refresh_labels_are_localized (__main__.SourceContracts.test_refresh_labels_are_localized) ... ok
 
 ----------------------------------------------------------------------
-Ran 17 tests in 0.006s
+Ran 26 tests in 0.028s
 
 OK

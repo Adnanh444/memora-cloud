@@ -1,4 +1,13 @@
 # Changelog
+## 0.9.5 — Photo/video controls, in-app playback and data-friendly cloud previews
+- Matching theme-aware gold photo / blue video rings and compact lines; independent persistent Gallery/Cloud visibility controls.
+- Compact numeric selection badges and a narrow bottom-only photo toolbar; readable system bars in the black viewer.
+- Shared Media3 Gallery/Cloud video player with lifecycle pause, retry/error handling and temporary cloud-original playback. Platform-dependent HEIC/HEIF/MOV/HEVC; no universal codec/transcoding guarantee.
+- Channel-deletion warning and explicit confirmed archive/mute convenience; no deletion lock or remote media mutation. 0.9.2 credential/backup/recovery core retained.
+- Cloud previews are not downloaded on mobile data unless enabled (default off); opening an item is the only consented transfer. User-set preview cache ceiling (200/500/1000 MB, default 500) with oldest-first eviction and a Clear action.
+- Telegram sign-in redesigned (UI only): three-step indicator, paste buttons, inline validation, in-button progress, password reveal. The authentication, storage, backup and recovery logic is untouched.
+- No AI in this build: the prepared on-device CLIP/SFace/OCR subsystem, its models, licences and runtime dependency were removed. Photos/videos only; no general-file/audio/document backup, no bin, no FIFO queue, no remote merge.
+
 ## 0.9.4 — Dark contrast / 0.9.2 Telegram rollback
 - Fixed inherited default-black text in dark mode by supplying theme-aware root content colors; kept light-mode and component/status colors.
 - Kept the 0.9.3 interface, coverage/collapse, four-tab highlight, utility layout, metadata search and optional local lock.

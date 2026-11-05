@@ -24,7 +24,7 @@ Daemon will be stopped at the end of the build
 > Task :app:javaPreCompileRelease UP-TO-DATE
 > Task :app:compileReleaseJavaWithJavac UP-TO-DATE
 > Task :app:mergeReleaseArtProfile UP-TO-DATE
-> Task :app:expandReleaseArtProfileWildcards
+> Task :app:expandReleaseArtProfileWildcards UP-TO-DATE
 > Task :app:extractProguardFiles UP-TO-DATE
 > Task :app:mergeReleaseGeneratedProguardFiles UP-TO-DATE
 > Task :app:processReleaseJavaRes UP-TO-DATE
@@ -32,5 +32,6 @@ Daemon will be stopped at the end of the build
 > Task :app:mergeReleaseStartupProfile UP-TO-DATE
 > Task :app:minifyReleaseWithR8
 
-BUILD SUCCESSFUL in 3m 51s
-28 actionable tasks: 2 executed, 26 up-to-date
+BUILD SUCCESSFUL in 5m 38s
+28 actionable tasks: 1 executed, 27 up-to-date
+R8_EXIT=0

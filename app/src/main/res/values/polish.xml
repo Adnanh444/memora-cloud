@@ -15,11 +15,25 @@
     <string name="lp_search_scope">Search this collection</string>
     <string name="lp_search_local">Search on phone</string>
     <string name="lp_search_cloud">Search cloud index</string>
-    <string name="lp_search_note">Search names, folders, dates and media types. Visual AI and face grouping are not enabled in this build.</string>
+    <string name="lp_search_note">Search names, folders, dates and media types. This build has no AI or image analysis; cloud search is metadata-only.</string>
     <string name="lp_app_lock">App lock</string>
     <string name="lp_unlock">Unlock with phone screen lock</string>
     <string name="lp_lock_description">Protect Memora when opened and after 30 seconds in the background. Uses your phone PIN, pattern or password. Background backup can continue.</string>
     <string name="lp_lock_on">On · screen captures blocked</string>
     <string name="lp_lock_off">Off · optional device-credential protection</string>
     <string name="lp_verify_to_count">Verify your Telegram account and destination to see backup coverage. A hidden cloud index does not mean your backups were deleted.</string>
+    <string name="set_cloud_mobile">Cloud previews on mobile data</string>
+    <string name="set_on">Allowed</string>
+    <string name="set_off_saves_data">Off — saves data</string>
+    <string name="set_cache_limit">Preview cache limit</string>
+    <string name="set_clear_cache">Clear preview cache</string>
+    <string name="set_cache_used">%1$d MB in use</string>
+    <string name="tg_paste">Paste</string>
+    <string name="tg_id_invalid">API ID must be the number from my.telegram.org</string>
+    <string name="tg_hash_invalid">API hash is 32 characters</string>
+    <string name="tg_cred_how">Where do I get these?</string>
+    <string name="tg_phone_note">The code is sent by Telegram to this phone number’s account, not to us.</string>
+    <string name="tg_password_body">Your account has two-step verification enabled. Enter that password; it never leaves the device.</string>
+    <string name="tg_show_password">Show password</string>
+    <string name="tg_hide_password">Hide password</string>
 </resources>

@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="mx_show_counters">Show photo/video counters</string>
+    <string name="mx_hide_counters">Hide photo/video counters</string>
+    <string name="mx_channel_warning">Keep your backup channel and Saved Messages recovery notes. Deleting the channel in Telegram can permanently remove your backups. Archiving and muting reduces clutter; it does not lock or protect the channel against deletion.</string>
+    <string name="mx_archive_mute">Archive &amp; mute backup channel</string>
+    <string name="mx_archive_confirm">Move this backup channel to Telegram’s archive and mute its notifications? It remains accessible and deletable in Telegram. No originals, channel or recovery notes will be deleted. Telegram may move an archived chat back to the main list according to its settings.</string>
+    <string name="mx_channel_done">Mute: %1$s · Archive: %2$s. This channel is still deletable in Telegram.</string>
+    <string name="mx_ok">confirmed</string>
+    <string name="mx_not_confirmed">not confirmed; retry if needed</string>
+    <string name="mx_video_error">This video could not be played. The device may not support its codec/profile, or the file may be unavailable or damaged. HEVC, HDR, ProRes and iPhone formats are device-dependent. Try again or download a cloud original for another compatible player.</string>
+    <string name="mx_image_error">Image preview unavailable. HEIC/HEIF, AVIF and RAW support depends on Android and the device. The original backup is not converted or deleted.</string>
+    <string name="mx_retry">Retry</string>
+</resources>

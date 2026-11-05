@@ -120,10 +120,7 @@ internal fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adna
     BackHandler { vm.clearSelection() }
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Filled.Close, stringResource(R.string.clear_selection)) }
-        Text(
-            if (selection.isEmpty()) stringResource(R.string.select_items) else stringResource(R.string.selected_count, selection.size),
-            style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
-        )
+        SelectionCount(selection.size, Modifier.weight(1f))
         IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         TextButton(
             enabled = selection.isNotEmpty(),

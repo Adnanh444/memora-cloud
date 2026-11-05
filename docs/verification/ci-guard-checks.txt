@@ -1,5 +1,5 @@
-0.9.4 LOCAL SHELL/YAML SIMULATIONS ONLY. Gradle command stubbed. Fake signer file tests file-presence guard only, not real key validity. No owner keys/API/session/GitHub run tested.
-PASS: missing original signer; exit 1
-PASS: no API credentials, signer file present; exit 0
-PASS: stale API variables ignored, signer file present; exit 0
-PASS: artifact name/compression=0/APK CRC and SHA256 paths
+0.9.5 LOCAL shell/YAML simulation; Gradle build STUBBED, fake signer is file-presence only; not a real GitHub run/owner-key test.
+PASS missing original signer: exit 1
+PASS no API values, existing signer path: exit 0
+PASS irrelevant malformed API env, existing signer path: exit 0
+PASS source/contrast/inventory verifier commands, artifact name/compression=0/CRC/SHA paths

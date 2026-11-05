@@ -1,0 +1,40 @@
+Source archive packaging record (0.9.5 / code 19)
+=================================================
+
+Archive : memora-cloud-0.9.5-media.zip
+Layout  : single root directory "memora-cloud/", one file per `git ls-files` entry.
+          No build outputs, no .gradle cache, no __pycache__/*.pyc, no keystore, no APK.
+Method  : ZIP_DEFLATED; the SHA-256 of the archive is published beside it as
+          memora-cloud-0.9.5-media.zip.sha256.
+
+Checks performed after packaging
+--------------------------------
+* ZipFile.testzip() returns None (every CRC valid).
+* Extracted into a clean directory and compared with the tracked file list.
+* Inside the extracted copy, with PYTHONDONTWRITEBYTECODE=1:
+  - tools/verify_contracts.py      -> 26 contracts OK
+  - tools/verify_dark_contrast.py  -> 6 contrast tests OK
+  - tools/check_integrity.py       -> PASS, protected inventory matches
+* docs/verification/CHANGES-VS-0.9.4.txt records the content-SHA comparison against
+  the preserved 0.9.4 archive.
+
+What the bundled evidence is
+----------------------------
+docs/verification/* contains the sandbox logs and JUnit XMLs for this exact source
+tree: 44 JVM tests over 7 suites, 26 source contracts, 6 contrast tests, integrity
+inventory, release compile + vital lint, debug APK, R8 and optimized release APK.
+Release APK 26,127,280 bytes; debug 44,799,864 bytes (both sandbox-signed).
+
+What it is not
+--------------
+Not a phone test, not an owner-signer build, not a live Telegram account test, not a
+codec matrix, not a security/privacy audit, and not publication approval. This build
+contains no AI: no ONNX runtime, no OCR, no face grouping, no model downloads.
+
+Git checkpoint note
+-------------------
+The working tree's original `.git` directory was lost when the workspace was reset
+between sessions, so the historical commit chain could not be preserved. A local
+repository holds a checkpoint commit of this source; the preserved 0.9.4 archive and
+its commit `1e475c7` remain the comparison baseline. Nothing was pushed, merged or
+deleted remotely.

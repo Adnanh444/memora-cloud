@@ -1,20 +1,26 @@
-# 0.9.4 architecture and scope
+# 0.9.5 architecture and scope
 
-Phases 1–7 remain the existing foundation. The user selected 0.9.3 UI plus dark-mode text fixes, but **0.9.2 Telegram login/backup/recovery**.
+Photos/videos only. One Compose app, Room ledger, WorkManager backup, TDLib as the user's own Telegram storage. No AI subsystem in this build.
 
-## UI and contrast
-- `gallery/CoverageMath` / `ui/screens/CoveragePanel`: readable-local denominator, VERIFIED ledger keys, animated rings/compact bars and non-consuming nested scroll.
-- `ui/MemoraApp`: four translucent selected tabs, scoped metadata search and explicit theme foreground on the transparent Scaffold.
-- `ui/theme/Theme`: LocalContentColor provided inside MaterialTheme, preventing plain text/icons from inheriting default black in dark mode. Existing component foreground roles and Day/Night palettes retained.
-- `ui/AppLockGate` / `data/AppLockPolicy`: optional Android credential modal, 30-second background grace and secure-window flags. Separate from launch authorization; no custom app PIN.
+## UI / playback
+- `ui/screens/MediaGrid.kt` renders both grids; `CoveragePanel.kt` + `CounterControls.kt` own the gold photo / blue video tints and the two persisted visibility toggles.
+- `SelectionCount.kt` is the compact badge; `ViewerScreen.kt` keeps a single narrow bottom toolbar.
+- `MediaVideoPlayer.kt` wraps Media3 (`media3-exoplayer`, `media3-ui`), used from both Gallery and Cloud. Cloud videos first request a temporary original through TDLib; local videos use the content URI.
+- `TelegramScreen.kt` is presentation-only around the retained 0.9.2 auth state machine (`TgAuth`): step indicator, paste, inline validation, reveal toggle. It calls the same `saveCredentials/submitPhone/submitCode/submitPassword` entry points and nothing else.
 
-## Legacy Telegram boundary
-The entire Telegram package, BackupEngine, RecoveryEngine, TelegramScreen and RecoveryScreen are byte-identical to delivered 0.9.2. Direct in-app API setup uses existing encrypted local storage and saved sessions. Local/custom build credentials remain an optional fallback; normal CI does not inject them or require their Secrets. Original signing Secrets/selection are preserved.
+## Telegram boundary (unchanged from 0.9.2)
+`telegram/TelegramClient.kt` keeps its parameters, auth flow, key/note format, upload atomics and recovery helpers. The only addition is the opt-in archive/mute helper used by the channel warning. No new credential scheme, no remote destructive call, no cache-limit call into TDLib.
 
-0.9.3 CredentialPolicy, HistoryScanRules and DestinationScope and their tests are no longer wired and have been removed from this branch. The original 0.9.3 branch/ZIP retains them. Strict scans, shared recovery operation lock, positive-page persistence, metadata warning state, held-ID rediscovery correction, automatic logout pause and backend destination scoping are therefore absent. This deliberate rollback is not a claim of improved recovery security.
+## Network and storage policy
+- `data/NetworkPolicy.kt` is the single place that decides whether a cloud preview may be fetched: unmetered always allows, metered follows the user's switch (default off). `cloud/CloudUri.kt`'s `CloudFetcher` returns `null` when blocked, so Coil draws nothing instead of downloading.
+- The same file owns the cache ceiling (200/500/1000 MB, default 500) and the clear-cache action.
+- `MemoraApplication.newImageLoader()` builds Coil with a bounded memory cache (12 % of RAM) and a disk cache of `NetworkPolicy.imageDiskBytes` (half of the ceiling, leaving the other half to TDLib's own media cache).
 
-## Unchanged foundation
-Room schema 2, SHA cache, upload run gate/workspace/acknowledgment rules, CONFIRMING queue behavior, WorkManager scheduling, storage/key notes, metadata/album/archive formats, native favorites, bins, Cloud download addressing, permissions, signing configuration and existing importer/key-generation workflows remain. No new credential/media server, recovery-key scheme, destructive remote operation or data reset.
+## Trust boundaries
+- Phone originals are read through MediaStore; backup never deletes them.
+- Cloud and phone stay separate libraries; downloading never triggers an upload.
+- Backup eligibility remains "type ON and folder ON" for manual, automatic, queued and retried uploads.
+- Credentials stay in the existing Keystore-encrypted local store; channel/account identifiers stay masked until a screen-lock confirmation.
 
-## Boundaries
-Coverage reflects the legacy installation ledger and is not proof of account/destination isolation or download-and-rehash integrity. Use one account/destination and pause manually before logout/recovery. See IMPLEMENTATION.md for recovery caveats. AI/face models, deployed approval and production security/profile isolation remain open in LAUNCH-AND-AI.md. Tests/static contrast math do not replace device/Telegram tests.
+## Protected foundation / launch gaps
+`tools/check_integrity.py` pins the delivery hashes of 37 protected files (30 unchanged since the retained baseline, 6 authorized changes, 1 new helper). Owner-signed phone tests, live Telegram validation, TDLib cache-ceiling control, target-SDK/16 KiB review and the deferred v1.0 work remain open; see `docs/LAUNCH-AND-AI.md` and `docs/PLAN-v1.0.md`.

@@ -9,3 +9,7 @@ local.properties
 secrets.properties
 
 .kotlin/
+
+# Python verifier caches are generated, not source deliverables.
+__pycache__/
+*.py[cod]

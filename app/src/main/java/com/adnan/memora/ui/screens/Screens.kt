@@ -89,6 +89,11 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
     val toggleLock = com.adnan.memora.ui.rememberAppLockToggle()
     val tgLabel = stringResource(if (auth is com.adnan.memora.telegram.TgAuth.Ready) R.string.tg_connected else R.string.tg_disconnected)
     var showLang by remember { mutableStateOf(false) }
+    var showCap by remember { mutableStateOf(false) }
+    var cloudOnMetered by remember { mutableStateOf(com.adnan.memora.data.NetworkPolicy.cloudOnMetered(ctx)) }
+    var capMb by remember { mutableStateOf(com.adnan.memora.data.NetworkPolicy.cacheCapMb(ctx)) }
+    var cacheMb by remember { mutableStateOf(com.adnan.memora.data.NetworkPolicy.imageCacheBytes(ctx) / (1024L * 1024L)) }
+    val caps = listOf(200, 500, 1000)
     val tag = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
     val langs = listOf("" to stringResource(R.string.lang_system), "en" to "English", "bn" to "বাংলা")
     Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -100,10 +105,37 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
             SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), null, onBackup)
             SettingRow(Icons.Filled.Lock, stringResource(R.string.lp_app_lock), stringResource(if (lockEnabled) R.string.lp_lock_on else R.string.lp_lock_off), toggleLock)
+            SettingRow(
+                Icons.Filled.Wifi, stringResource(R.string.set_cloud_mobile),
+                stringResource(if (cloudOnMetered) R.string.set_on else R.string.set_off_saves_data),
+            ) {
+                cloudOnMetered = !cloudOnMetered
+                com.adnan.memora.data.NetworkPolicy.setCloudOnMetered(ctx, cloudOnMetered)
+            }
+            SettingRow(Icons.Filled.SdStorage, stringResource(R.string.set_cache_limit), "$capMb MB") { showCap = true }
+            SettingRow(
+                Icons.Filled.DeleteSweep, stringResource(R.string.set_clear_cache),
+                stringResource(R.string.set_cache_used, cacheMb),
+            ) {
+                com.adnan.memora.data.NetworkPolicy.clearImageCache(ctx)
+                cacheMb = 0
+            }
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langs.firstOrNull { it.first == tag }?.second) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)
         }
     }
+    if (showCap) ChoiceSheet(
+        title = stringResource(R.string.set_cache_limit),
+        options = caps.map { "$it MB" to (capMb == it) },
+        onPick = {
+            capMb = caps[it]
+            com.adnan.memora.data.NetworkPolicy.setCacheCapMb(ctx, capMb)
+            // The image loader was built with the old ceiling; reset so the new limit takes effect.
+            coil.Coil.reset()
+            showCap = false
+        },
+        onDismiss = { showCap = false },
+    )
     if (showLang) ChoiceSheet(
         title = stringResource(R.string.language), options = langs.map { it.second to (it.first == tag) },
         onPick = { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(langs[it].first)); showLang = false },

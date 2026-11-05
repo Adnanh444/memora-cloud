@@ -100,12 +100,13 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
     val destination by com.adnan.memora.telegram.TelegramClient.get(ctx).storageStatus.collectAsState()
     val knownCoverage = destination is com.adnan.memora.telegram.StorageStatus.Verified
     val header = rememberCollapsingHeader()
+    var countersVisible by rememberCountersVisible("gallery")
     Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "header") { sel ->
             if (sel) SelectionHeader(vm, items)
-            else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings)
+            else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings, countersVisible = countersVisible, onToggleCounters = { countersVisible = !countersVisible })
         }
-        if (!selecting) CoveragePanel(coverage.photos.total, coverage.videos.total, if (knownCoverage) coverage.photos.verified else null, if (knownCoverage) coverage.videos.verified else null,
+        if (!selecting && countersVisible) CoveragePanel(coverage.photos.total, coverage.videos.total, if (knownCoverage) coverage.photos.verified else null, if (knownCoverage) coverage.videos.verified else null,
             header.compact, header::toggle, phoneLibrary = true)
         BackupStrip(
             summary, onOpen = onBackup, compact = header.compact || selecting,
@@ -135,15 +136,16 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
 }
 
 @Composable
-private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit, onSettings: () -> Unit) {
+private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit, onSettings: () -> Unit, countersVisible: Boolean, onToggleCounters: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)
             .glass(RoundedCornerShape(30.dp)).clickable(onClick = onSearch)
-            .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.Search, null, tint = cs.onSurfaceVariant)
+        CounterToggle(countersVisible, onToggleCounters)
         Spacer(Modifier.width(12.dp))
         Text(stringResource(R.string.search_hint), Modifier.weight(1f), color = cs.onSurfaceVariant,
             style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

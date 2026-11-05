@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,12 +21,14 @@ import com.adnan.memora.R
 import com.adnan.memora.gallery.GalleryViewModel
 import com.adnan.memora.gallery.SearchEngine
 import com.adnan.memora.gallery.CollectionKind
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.glass
 
+/**
+ * Metadata search over the phone library, the cloud library, or the collection currently open.
+ * Search is local filename/date/type matching only; this build contains no AI or image-analysis
+ * features, so nothing is analysed, indexed or downloaded for search.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> Unit, scope: String = "phone") {
@@ -40,10 +43,10 @@ fun SearchScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> U
     val all by (if (scope == "cloud") vm.cloudMedia else if (scope == "collection") collection else vm.all).collectAsState()
     val pool = remember(all, scope, vm.openFolderName) { if (scope == "folder") all.filter { it.bucket == vm.openFolderName } else all }
     val selecting by vm.selecting.collectAsState()
-    val results = remember(pool, query) { if (query.isBlank()) emptyList() else SearchEngine.search(pool, query) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
+    val results = remember(pool, query) { if (query.isBlank()) emptyList() else SearchEngine.search(pool, query) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Crossfade(selecting, label = "searchHeader") { sel ->
@@ -53,8 +56,7 @@ fun SearchScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> U
                     "collection" -> CollectionSelectionHeader(vm, results, vm.collectionKind, vm.collectionAlbumId)
                     else -> SelectionHeader(vm, results)
                 }
-            }
-            else Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            } else Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
                 TextField(
                     value = query, onValueChange = { query = it }, singleLine = true,
@@ -70,8 +72,17 @@ fun SearchScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> U
                 )
             }
         }
-        Text(stringResource(if (scope == "cloud") R.string.lp_search_cloud else if (scope == "phone") R.string.lp_search_local else R.string.lp_search_scope),
-            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+        Text(
+            stringResource(
+                when (scope) {
+                    "cloud" -> R.string.lp_search_cloud
+                    "phone" -> R.string.lp_search_local
+                    else -> R.string.lp_search_scope
+                },
+            ),
+            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        )
         if (query.isBlank()) {
             Column(Modifier.padding(16.dp).appear(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

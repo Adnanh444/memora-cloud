@@ -102,7 +102,6 @@ fun MemoraApp() {
                 composable(Tab.Cloud.route) {
                     CloudScreen(gallery, onOpenViewer = { nav.navigate("viewer") }, onOpenStorage = { nav.navigate("telegram") }, onSearch = { nav.navigate("search/cloud") })
                 }
-                composable("people") { PlaceholderScreen(R.string.nav_people, Icons.Filled.People) }
                 composable(Tab.Library.route) {
                     LibraryScreen(
                         gallery,
@@ -148,7 +147,7 @@ fun MemoraApp() {
                 composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
                 composable("viewer") { ViewerScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("search/{scope}") { searchEntry ->
-                    SearchScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, scope = searchEntry.arguments?.getString("scope") ?: "phone")
+                    SearchScreen(gallery, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, scope = searchEntry.arguments?.getString("scope") ?: "phone" )
                 }
                 composable("folder") {
                     FolderScreen(gallery, gallery.openFolderName, onBack = { nav.popBackStack() }, onOpenViewer = { nav.navigate("viewer") }, onSearch = { nav.navigate("search/folder") })

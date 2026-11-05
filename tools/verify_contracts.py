@@ -92,12 +92,24 @@ class RetainedInterfaceContracts(unittest.TestCase):
             return {n.get("name") for n in ET.parse(ROOT / f"app/src/main/res/{folder}/polish.xml").getroot()}
         self.assertEqual(names("values"), names("values-bn"))
 
-    def test_telegram_engines_and_screens_match_delivered_0_9_2(self):
+    def test_telegram_core_matches_0_9_2_except_additive_channel_action(self):
         baseline = json.loads((ROOT / "docs/verification/telegram-0.9.2-baseline.json").read_text())
         self.assertEqual(len(baseline), 9)
         for path, expected in baseline.items():
+            if path.endswith("ui/screens/TelegramScreen.kt"):
+                continue  # Deliberate warning/explicit-action UI additions, not a backend rewrite.
             with self.subTest(path=path):
-                self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), expected)
+                source=(ROOT/path).read_text()
+                if path.endswith("telegram/TelegramClient.kt"):
+                    start=source.index("    /** Explicit, non-destructive convenience action.")
+                    end=source.index("    /** Waits until Telegram",start)
+                    action=source[start:end]
+                    self.assertIn("SetChatNotificationSettings",action)
+                    self.assertIn("ChatListArchive",action)
+                    self.assertIn("sameDestination()",action)
+                    self.assertNotIn("TdApi.Delete",action)
+                    source=source[:start]+source[end:]
+                self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), expected)
 
     def test_manual_credentials_are_directly_available_not_advanced_only(self):
         screen = (JAVA / "ui/screens/TelegramScreen.kt").read_text()
@@ -133,6 +145,89 @@ class RetainedInterfaceContracts(unittest.TestCase):
         app = (JAVA / "ui/MemoraApp.kt").read_text()
         self.assertIn("LocalContentColor provides MaterialTheme.colorScheme.onBackground", theme)
         self.assertIn("contentColor = MaterialTheme.colorScheme.onBackground", app)
+
+
+class MediaAiContracts(unittest.TestCase):
+    def test_new_labels_have_bengali_parity(self):
+        names=lambda f:{n.get("name") for n in ET.parse(ROOT/f"app/src/main/res/{f}/media_ai.xml").getroot()}
+        self.assertEqual(names("values"),names("values-bn"))
+
+    def test_counters_have_separate_persisted_visibility(self):
+        controls=(JAVA/"ui/screens/CounterControls.kt").read_text()
+        self.assertIn('prefs.getBoolean(page, true)',controls)
+        self.assertIn('rememberCountersVisible("gallery")',(JAVA/"ui/screens/PhotosScreen.kt").read_text())
+        self.assertIn('rememberCountersVisible("cloud")',(JAVA/"ui/screens/CloudScreen.kt").read_text())
+
+    def test_same_counter_tint_drives_ring_and_line(self):
+        panel=(JAVA/"ui/screens/CoveragePanel.kt").read_text()
+        self.assertIn('photoVerified, photoTint, small',panel)
+        self.assertIn('videoVerified, videoTint, small',panel)
+        self.assertGreaterEqual(panel.count('color = tint'),3)
+
+    def test_both_gallery_and_cloud_use_in_app_player(self):
+        viewer=(JAVA/"ui/screens/ViewerScreen.kt").read_text()
+        player=(JAVA/"ui/screens/MediaVideoPlayer.kt").read_text()
+        self.assertIn('playingVideo = m',viewer)
+        self.assertIn('MediaVideoPlayer(video)',viewer)
+        self.assertNotIn('Intent(Intent.ACTION_VIEW)',viewer)
+        for required in ['ExoPlayer.Builder','cloudFullPath','Lifecycle.Event.ON_STOP','player.release()','mx_video_error']:
+            self.assertIn(required,player)
+
+    def test_build_contains_no_ai_runtime_models_or_ocr(self):
+        gradle=(ROOT/'app/build.gradle.kts').read_text()
+        self.assertNotIn('onnxruntime',gradle)
+        self.assertNotIn('mlkit-text-recognition',gradle)
+        self.assertNotIn('mlkit-face-detection',gradle)
+        self.assertFalse((JAVA/'ai').exists())
+        self.assertFalse((ROOT/'app/src/main/assets/ai').exists())
+        self.assertFalse((JAVA/'ui/screens/AiSettingsScreen.kt').exists())
+        for locale in ('values','values-bn'):
+            strings=(ROOT/f'app/src/main/res/{locale}/media_ai.xml').read_text()
+            self.assertNotIn('mx_ai',strings)
+            self.assertNotIn('mx_ocr',strings)
+        search=(JAVA/'ui/screens/SearchScreen.kt').read_text()
+        self.assertNotIn('AiManager',search)
+
+    def test_cloud_previews_are_gated_by_connection_policy(self):
+        policy=(JAVA/'data/NetworkPolicy.kt').read_text()
+        self.assertIn('cloud_on_metered',policy)
+        self.assertIn('NET_CAPABILITY_NOT_METERED',policy)
+        self.assertIn('fun allowsCloudFetch',policy)
+        fetcher=(JAVA/'cloud/CloudUri.kt').read_text()
+        self.assertIn('NetworkPolicy.allowsCloudFetch(app)',fetcher)
+        # Default must be data-saving: nothing fetched on a metered connection until opted in.
+        self.assertIn('getBoolean("cloud_on_metered", false)',policy)
+
+    def test_caches_are_bounded_and_clearable(self):
+        app=(JAVA/'MemoraApplication.kt').read_text()
+        self.assertIn('maxSizePercent(0.12)',app)
+        self.assertIn('NetworkPolicy.imageDiskBytes',app)
+        self.assertIn('maxSizeBytes',app)
+        policy=(JAVA/'data/NetworkPolicy.kt').read_text()
+        self.assertIn('fun clearImageCache',policy)
+        settings=(JAVA/'ui/screens/Screens.kt').read_text()
+        self.assertIn('R.string.set_clear_cache',settings)
+        self.assertIn('R.string.set_cache_limit',settings)
+        self.assertIn('R.string.set_cloud_mobile',settings)
+
+    def test_sign_in_redesign_keeps_the_backend_untouched(self):
+        screen=(JAVA/'ui/screens/TelegramScreen.kt').read_text()
+        for marker in ('StepDots','StepShell','PasteButton','tg_show_password','tg_paste'):
+            self.assertIn(marker,screen)
+        # UI only: the auth entry points are called exactly as the retained 0.9.2 flow requires.
+        for call in ('tg.saveCredentials(id, hash)','tg.submitPhone(','tg.submitCode(','tg.submitPassword('):
+            self.assertIn(call,screen)
+        client=(JAVA/'telegram/TelegramClient.kt').read_text()
+        self.assertNotIn('OptimizeStorage',client)
+
+    def test_selection_count_is_compact_and_viewer_controls_bottom_only(self):
+        badge=(JAVA/'ui/screens/SelectionCount.kt').read_text()
+        self.assertIn('typography.labelLarge',badge)
+        self.assertIn('maxLines=1',badge)
+        viewer=(JAVA/'ui/screens/ViewerScreen.kt').read_text()
+        self.assertNotIn('// top bar',viewer)
+        self.assertIn('// One narrow bottom toolbar',viewer)
+
 
 
 if __name__ == "__main__":

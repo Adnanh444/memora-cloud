@@ -9,6 +9,7 @@ import coil.fetch.FetchResult
 import coil.fetch.Fetcher
 import coil.fetch.SourceResult
 import coil.request.Options
+import com.adnan.memora.data.NetworkPolicy
 import com.adnan.memora.telegram.TelegramClient
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
@@ -33,6 +34,9 @@ object CloudUri {
 class CloudFetcher(private val app: Context, private val data: Uri) : Fetcher {
     override suspend fun fetch(): FetchResult? {
         val ids = CloudUri.ids(data) ?: return null
+        // Metered connections: no cloud preview is fetched unless the user allowed it in Settings.
+        // Returning null makes Coil show the empty cell instead of downloading anything.
+        if (!NetworkPolicy.allowsCloudFetch(app)) return null
         val tg = TelegramClient.get(app)
         val path = if (data.host == "full") tg.cloudFullPath(ids.first, ids.second)
         else tg.cloudThumbPath(ids.first, ids.second)

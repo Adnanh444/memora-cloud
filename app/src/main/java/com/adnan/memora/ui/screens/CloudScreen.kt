@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.adnan.memora.R
 import com.adnan.memora.backup.BackupEngine
 import com.adnan.memora.cloud.CloudDownloader
@@ -45,17 +46,18 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
 
     val header = rememberCollapsingHeader()
+    var countersVisible by rememberCountersVisible("cloud")
     Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "cloudHeader") { sel ->
             if (sel) CloudSelectionHeader(vm, items)
             else Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_cloud)) }; ThemeToggle()
+                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_cloud)) }; CounterToggle(countersVisible) { countersVisible = !countersVisible }; ThemeToggle()
                 }
 
             }
         }
-        if (!selecting && status is StorageStatus.Verified) CoveragePanel(cloudAll.count { !it.isVideo }, cloudAll.count { it.isVideo }, null, null, header.compact, header::toggle)
+        if (!selecting && countersVisible && status is StorageStatus.Verified) CoveragePanel(cloudAll.count { !it.isVideo }, cloudAll.count { it.isVideo }, null, null, header.compact, header::toggle)
         if (status !is StorageStatus.Verified) Text(stringResource(R.string.lp_verify_to_count), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         dl?.let { DownloadStrip(it) }
@@ -120,10 +122,7 @@ fun CloudSelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
     )
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Filled.Close, stringResource(R.string.clear_selection)) }
-        Text(
-            if (selection.isEmpty()) stringResource(R.string.select_items) else stringResource(R.string.selected_count, selection.size),
-            style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
-        )
+        SelectionCount(selection.size, Modifier.weight(1f))
         IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         IconButton(onClick = {
             CloudDownloader.start(ctx, vm.selectedCloud())

@@ -1,0 +1,31 @@
+test_both_gallery_and_cloud_use_in_app_player (__main__.MediaAiContracts.test_both_gallery_and_cloud_use_in_app_player) ... ok
+test_build_contains_no_ai_runtime_models_or_ocr (__main__.MediaAiContracts.test_build_contains_no_ai_runtime_models_or_ocr) ... ok
+test_caches_are_bounded_and_clearable (__main__.MediaAiContracts.test_caches_are_bounded_and_clearable) ... ok
+test_cloud_previews_are_gated_by_connection_policy (__main__.MediaAiContracts.test_cloud_previews_are_gated_by_connection_policy) ... ok
+test_counters_have_separate_persisted_visibility (__main__.MediaAiContracts.test_counters_have_separate_persisted_visibility) ... ok
+test_new_labels_have_bengali_parity (__main__.MediaAiContracts.test_new_labels_have_bengali_parity) ... ok
+test_same_counter_tint_drives_ring_and_line (__main__.MediaAiContracts.test_same_counter_tint_drives_ring_and_line) ... ok
+test_selection_count_is_compact_and_viewer_controls_bottom_only (__main__.MediaAiContracts.test_selection_count_is_compact_and_viewer_controls_bottom_only) ... ok
+test_sign_in_redesign_keeps_the_backend_untouched (__main__.MediaAiContracts.test_sign_in_redesign_keeps_the_backend_untouched) ... ok
+test_automatic_queue_never_resends_uncertain (__main__.QueueSafety.test_automatic_queue_never_resends_uncertain) ... ok
+test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded (__main__.QueueSafety.test_cloud_only_ledger_query_excludes_uncertain_and_unuploaded) ... ok
+test_normal_retry_cannot_release_uncertain (__main__.QueueSafety.test_normal_retry_cannot_release_uncertain) ... ok
+test_only_bounded_known_failures_request_worker_retry (__main__.QueueSafety.test_only_bounded_known_failures_request_worker_retry) ... ok
+test_restart_only_resets_pre_send_uploading (__main__.QueueSafety.test_restart_only_resets_pre_send_uploading) ... ok
+test_uncertain_requires_its_explicit_release_query (__main__.QueueSafety.test_uncertain_requires_its_explicit_release_query) ... ok
+test_ci_requires_original_signer_but_no_api_secrets (__main__.RetainedInterfaceContracts.test_ci_requires_original_signer_but_no_api_secrets) ... ok
+test_dark_mode_root_has_explicit_content_color (__main__.RetainedInterfaceContracts.test_dark_mode_root_has_explicit_content_color) ... ok
+test_logout_does_not_erase_saved_api_identity (__main__.RetainedInterfaceContracts.test_logout_does_not_erase_saved_api_identity) ... ok
+test_manual_credentials_are_directly_available_not_advanced_only (__main__.RetainedInterfaceContracts.test_manual_credentials_are_directly_available_not_advanced_only) ... ok
+test_optional_lock_uses_system_credential_not_stored_custom_pin (__main__.RetainedInterfaceContracts.test_optional_lock_uses_system_credential_not_stored_custom_pin) ... ok
+test_polish_labels_have_bengali_parity (__main__.RetainedInterfaceContracts.test_polish_labels_have_bengali_parity) ... ok
+test_telegram_core_matches_0_9_2_except_additive_channel_action (__main__.RetainedInterfaceContracts.test_telegram_core_matches_0_9_2_except_additive_channel_action) ... ok
+test_utility_grid_has_four_tiles (__main__.RetainedInterfaceContracts.test_utility_grid_has_four_tiles) ... ok
+test_native_favorites_does_not_write_legacy_org_favorites (__main__.SourceContracts.test_native_favorites_does_not_write_legacy_org_favorites) ... ok
+test_no_special_media_management_permission (__main__.SourceContracts.test_no_special_media_management_permission) ... ok
+test_refresh_labels_are_localized (__main__.SourceContracts.test_refresh_labels_are_localized) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.013s
+
+OK

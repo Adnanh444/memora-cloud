@@ -1,51 +1,57 @@
-[
-  {
-    "name": "com.adnan.memora.telegram.UploadAwaiterTest",
-    "tests": "5",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.backup.UploadRunGateTest",
-    "tests": "4",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.ui.screens.InterfaceRulesTest",
-    "tests": "7",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.data.AppLockPolicyTest",
-    "tests": "4",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.backup.UploadWorkspaceTest",
-    "tests": "4",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.gallery.CoverageMathTest",
-    "tests": "10",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "com.adnan.memora.ui.screens.GridDensityTest",
-    "tests": "10",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  }
-]
+{
+  "tests": 44,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "suites": [
+    {
+      "suite": "com.adnan.memora.backup.UploadRunGateTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.backup.UploadWorkspaceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.data.AppLockPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.gallery.CoverageMathTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.telegram.UploadAwaiterTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.ui.screens.GridDensityTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.adnan.memora.ui.screens.InterfaceRulesTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

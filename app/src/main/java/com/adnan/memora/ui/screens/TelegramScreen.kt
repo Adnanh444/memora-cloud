@@ -7,7 +7,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -20,13 +22,18 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.adnan.memora.R
 import com.adnan.memora.telegram.StorageStatus
 import com.adnan.memora.telegram.TelegramClient
@@ -34,6 +41,7 @@ import com.adnan.memora.telegram.TelegramConfig
 import com.adnan.memora.telegram.TgAuth
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.glass
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +54,10 @@ fun TelegramScreen(onBack: () -> Unit, onRecover: () -> Unit) {
     val status by tg.storageStatus.collectAsState()
     val busy by tg.busy.collectAsState()
     val error by tg.error.collectAsState()
+    val actionScope = rememberCoroutineScope()
+    var confirmQuiet by remember { mutableStateOf(false) }
+    var quietBusy by remember { mutableStateOf(false) }
+    var quietResult by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
     var confirmCreate by remember { mutableStateOf(false) }
     var confirmForget by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
@@ -62,6 +74,19 @@ fun TelegramScreen(onBack: () -> Unit, onRecover: () -> Unit) {
 
     LaunchedEffect(Unit) { tg.clearError(); tg.start() }
 
+    if (confirmQuiet) ConfirmSheet(
+        title = stringResource(R.string.mx_archive_mute),
+        body = stringResource(R.string.mx_archive_confirm),
+        action = stringResource(R.string.mx_archive_mute),
+        onConfirm = {
+            actionScope.launch {
+                quietBusy = true
+                try { quietResult = tg.archiveMuteBackupChannel() }
+                finally { quietBusy = false }
+            }
+        },
+        onDismiss = { confirmQuiet = false },
+    )
     if (confirmCreate) ConfirmSheet(
         title = stringResource(R.string.tg_create_confirm_title),
         body = stringResource(R.string.tg_create_confirm_body),
@@ -147,6 +172,18 @@ fun TelegramScreen(onBack: () -> Unit, onRecover: () -> Unit) {
                                 is StorageStatus.Problem -> StatusLine(Icons.Filled.Error, stringResource(R.string.tg_status_problem, s.message), MaterialTheme.colorScheme.error)
                                 else -> StatusLine(Icons.Filled.HourglassTop, stringResource(R.string.tg_status_unknown), MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            Text(stringResource(R.string.mx_channel_warning), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface)
+                            OutlinedButton(onClick = { confirmQuiet = true }, enabled = !quietBusy && status is StorageStatus.Verified) {
+                                Icon(Icons.Filled.Archive, null); Spacer(Modifier.width(6.dp))
+                                Text(stringResource(R.string.mx_archive_mute))
+                            }
+                            quietResult?.let { result ->
+                                Text(stringResource(R.string.mx_channel_done,
+                                    stringResource(if (result.first) R.string.mx_ok else R.string.mx_not_confirmed),
+                                    stringResource(if (result.second) R.string.mx_ok else R.string.mx_not_confirmed)),
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = { tg.verifyStorage() }) {
                                     Icon(Icons.Filled.Refresh, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.tg_verify_access))
@@ -195,88 +232,199 @@ private fun StatusLine(icon: androidx.compose.ui.graphics.vector.ImageVector, te
     }
 }
 
+/** Three-segment progress indicator shown while connecting. Purely visual, no state. */
+@Composable
+private fun StepDots(step: Int) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(3) { i ->
+            val active = i <= step
+            Box(
+                Modifier.height(4.dp).weight(1f).clip(RoundedCornerShape(50))
+                    .background(
+                        if (active) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+            )
+        }
+    }
+}
+
+/**
+ * Shared frame for the sign-in steps: step indicator, one big icon, a title/body pair and the
+ * form content in a soft card. Layout only; every action is supplied by the caller.
+ */
+@Composable
+private fun StepShell(
+    step: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: Int,
+    body: Int,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().appear(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        StepDots(step)
+        Column(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier.size(64.dp).clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                Alignment.Center,
+            ) { Icon(icon, null, Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primary) }
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(body), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+            )
+        }
+        Column(Modifier.fillMaxWidth().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            content()
+        }
+    }
+}
+
+/** Primary action button; disabled until the form is valid and shows its own progress while working. */
+@Composable
+private fun StepButton(label: Int, enabled: Boolean, busy: Boolean, onClick: () -> Unit) {
+    Button(onClick = onClick, enabled = enabled && !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+        if (busy) {
+            CircularProgressIndicator(
+                Modifier.size(18.dp), strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
+    }
+}
+
+@Composable
+private fun PasteButton(onPaste: (String) -> Unit) {
+    val cb = androidx.compose.ui.platform.LocalClipboardManager.current
+    TextButton(onClick = {
+        val text = cb.getText()?.text?.trim().orEmpty()
+        if (text.isNotEmpty()) onPaste(text)
+    }) { Text(stringResource(R.string.tg_paste)) }
+}
+
 @Composable
 private fun CredentialsStep(onSave: (String, String) -> Unit) {
     val ctx = LocalContext.current
     var id by rememberSaveable { mutableStateOf("") }
-    var hash by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().appear().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.tg_cred_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.tg_cred_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = {
-            try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://my.telegram.org"))) } catch (_: Exception) {}
-        }) { Text(stringResource(R.string.tg_open_site)) }
+    var hash by rememberSaveable { mutableStateOf("") }
+    var showHelp by rememberSaveable { mutableStateOf(false) }
+    val idOk = id.length in 3..12
+    val hashOk = hash.length >= 32
+    StepShell(
+        step = 0, icon = Icons.Filled.Key,
+        title = R.string.tg_cred_title, body = R.string.tg_cred_body,
+    ) {
         OutlinedTextField(
-            value = id, onValueChange = { v -> id = v.filter { it.isDigit() } },
+            value = id, onValueChange = { v -> id = v.filter { it.isDigit() }.take(12) },
             label = { Text(stringResource(R.string.tg_api_id_label)) }, singleLine = true,
+            isError = id.isNotEmpty() && !idOk,
+            supportingText = { if (id.isNotEmpty() && !idOk) Text(stringResource(R.string.tg_id_invalid)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+            trailingIcon = { PasteButton { id = it.filter { c -> c.isDigit() }.take(12) } },
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
-            value = hash, onValueChange = { hash = it.trim() },
+            value = hash, onValueChange = { v -> hash = v.trim().take(64) },
             label = { Text(stringResource(R.string.tg_api_hash_label)) }, singleLine = true,
+            isError = hash.isNotEmpty() && !hashOk,
+            supportingText = { if (hash.isNotEmpty() && !hashOk) Text(stringResource(R.string.tg_hash_invalid)) },
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+            trailingIcon = { PasteButton { hash = it.trim().take(64) } },
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(onClick = { onSave(id, hash) }, enabled = id.isNotEmpty() && hash.length >= 32, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.tg_cred_save))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { showHelp = !showHelp }) { Text(stringResource(R.string.tg_cred_how)) }
+            TextButton(onClick = {
+                try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://my.telegram.org"))) } catch (_: Exception) {}
+            }) { Text(stringResource(R.string.tg_open_site)) }
         }
-        Text(stringResource(R.string.tg_cred_privacy), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (showHelp) {
+            Text(
+                stringResource(R.string.tg_cred_privacy),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        StepButton(R.string.tg_cred_save, enabled = idOk && hashOk, busy = false) { onSave(id, hash) }
     }
 }
 
 @Composable
 private fun PhoneStep(busy: Boolean, onSubmit: (String) -> Unit) {
     var phone by rememberSaveable { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().appear().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.tg_connect_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.tg_connect_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val ok = phone.count { it.isDigit() } >= 6
+    StepShell(
+        step = 1, icon = Icons.Filled.PhoneAndroid,
+        title = R.string.tg_connect_title, body = R.string.tg_connect_body,
+    ) {
         OutlinedTextField(
             value = phone, onValueChange = { v -> phone = v.filter { it.isDigit() || it == '+' } },
             label = { Text(stringResource(R.string.tg_phone_label)) }, singleLine = true,
+            isError = phone.isNotEmpty() && !ok,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(onClick = { onSubmit(phone) }, enabled = !busy && phone.length >= 6, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.tg_send_code))
-        }
+        Text(stringResource(R.string.tg_phone_note), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StepButton(R.string.tg_send_code, enabled = ok, busy = busy) { onSubmit(phone) }
     }
 }
 
 @Composable
 private fun CodeStep(busy: Boolean, onSubmit: (String) -> Unit) {
-    var code by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().appear().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.tg_code_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.tg_code_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var code by rememberSaveable { mutableStateOf("") }
+    val ok = code.length >= 4
+    StepShell(
+        step = 1, icon = Icons.Filled.Sms,
+        title = R.string.tg_code_title, body = R.string.tg_code_body,
+    ) {
         OutlinedTextField(
-            value = code, onValueChange = { v -> code = v.filter { it.isDigit() } },
+            value = code, onValueChange = { v -> code = v.filter { it.isDigit() }.take(6) },
             label = { Text(stringResource(R.string.tg_code_label)) }, singleLine = true,
+            isError = code.isNotEmpty() && !ok,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, letterSpacing = 6.sp),
+            trailingIcon = { PasteButton { code = it.filter { c -> c.isDigit() }.take(6) } },
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(onClick = { onSubmit(code) }, enabled = !busy && code.length >= 4, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.tg_verify))
-        }
+        StepButton(R.string.tg_verify, enabled = ok, busy = busy) { onSubmit(code) }
     }
 }
 
 @Composable
 private fun PasswordStep(hint: String, busy: Boolean, onSubmit: (String) -> Unit) {
-    var password by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().appear().glass().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.tg_password_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        if (hint.isNotBlank()) Text(stringResource(R.string.tg_password_hint, hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var password by rememberSaveable { mutableStateOf("") }
+    var visible by rememberSaveable { mutableStateOf(false) }
+    StepShell(
+        step = 1, icon = Icons.Filled.Lock,
+        title = R.string.tg_password_title, body = R.string.tg_password_body,
+    ) {
+        if (hint.isNotBlank()) {
+            Text(stringResource(R.string.tg_password_hint, hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         OutlinedTextField(
             value = password, onValueChange = { password = it },
             label = { Text(stringResource(R.string.tg_password_label)) }, singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { visible = !visible }) {
+                    Icon(
+                        if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        stringResource(if (visible) R.string.tg_hide_password else R.string.tg_show_password),
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(onClick = { onSubmit(password) }, enabled = !busy && password.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.tg_verify))
-        }
+        StepButton(R.string.tg_verify, enabled = password.isNotEmpty(), busy = busy) { onSubmit(password) }
     }
 }
 
