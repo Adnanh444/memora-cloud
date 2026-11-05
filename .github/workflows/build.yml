@@ -19,12 +19,29 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           fi
-      - run: gradle testDebugUnitTest assembleRelease --stacktrace
+      - name: Test and build with the existing release key
+        run: |
+          if [ ! -s "${KEYSTORE_FILE:-}" ]; then
+            echo "::error::Existing release signing key is missing. Restore its Secrets; do not generate a replacement key."
+            exit 1
+          fi
+          gradle testDebugUnitTest assembleRelease --stacktrace
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Check APK and write download checksum
+        run: |
+          cd app/build/outputs/apk/release
+          for apk in *.apk; do
+            test -s "$apk"
+            unzip -t "$apk" > /dev/null
+            sha256sum "$apk" > "$apk.sha256"
+          done
       - uses: actions/upload-artifact@v4
         with:
-          name: memora-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: memora-apk-0.9.4
+          compression-level: 0
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*.apk.sha256
