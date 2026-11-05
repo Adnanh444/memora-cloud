@@ -1,4 +1,21 @@
 # Changelog
+## 0.9.4 — Dark contrast / 0.9.2 Telegram rollback
+- Fixed inherited default-black text in dark mode by supplying theme-aware root content colors; kept light-mode and component/status colors.
+- Kept the 0.9.3 interface, coverage/collapse, four-tab highlight, utility layout, metadata search and optional local lock.
+- At the user’s explicit request, restored the entire 0.9.2 Telegram package, BackupEngine, RecoveryEngine and their two screens byte-for-byte. This removes the 0.9.3 Telegram hardening/scoping additions; see IMPLEMENTATION.md for limits.
+- Removed mandatory CI API credentials/injection; API ID/hash can be entered directly in the app. Original release-signing Secrets are still required.
+- Removed three unused rollback-only helpers/tests; preserved previous source ZIPs/branch. No schema/key/data reset, remote merge or old-branch deletion.
+
+## 0.9.3 — Recovery & Polish (test-branch milestone)
+- Gallery coverage rings/compact bars and a collapsing backup strip; Cloud totals remain separately scoped.
+- Four-tab glass-like selected indicator, small New album header icon, top 2×2 Albums utilities, framed selection/delete actions.
+- Scoped metadata-search entry points; visual AI and face search are not implemented.
+- Validated configured-app/manual Telegram credentials; bounded recovery, persisted positive batches and explicit metadata warnings.
+- Confirmation-held remote copies remain discoverable without blindly resending the held queue entry.
+- Optional Android-credential app lock/screenshot protection; verified active-destination display scoping and paused backup on logout.
+- Final sandbox checks: 59 JVM tests, 17 SQL/source checks, debug and fully optimized release assembly pass. Owner-key/live-phone/Telegram validation remains pending.
+- Full profile isolation, deployed owner approval, AI models and launch compliance remain open; see docs/LAUNCH-AND-AI.md.
+
 ## 0.9.0 — Phase 8 (part 1): Organization
 - Favorites, Archive and Albums (identified by SHA-256, so they follow your photos to a new phone).
 - Free Up Space: removes phone copies only after each one is re-verified with the cloud.

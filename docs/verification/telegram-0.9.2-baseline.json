@@ -1,0 +1,11 @@
+{
+  "app/src/main/java/com/adnan/memora/telegram/SecureKeys.kt": "7ec2746654b5398bb488e667b26d38e0e0c78ecfecd8e2b576f4104ce17abe9f",
+  "app/src/main/java/com/adnan/memora/telegram/StorageStore.kt": "831d9ab6fceff7bfb5376e37addecfb83cb00f6a6e97f921d3731fedaaecdf29",
+  "app/src/main/java/com/adnan/memora/telegram/TelegramClient.kt": "a689881fde829fc18a31e19df3a9337fa6f9bf37ae920fddde3ec329b3af434e",
+  "app/src/main/java/com/adnan/memora/telegram/TelegramConfig.kt": "feefb01206e402cf25fe38edb52a793901cc90b9d709190c7e72fa0c37998dd6",
+  "app/src/main/java/com/adnan/memora/telegram/UploadAwaiter.kt": "0af14d00a2b1a18e5a95a1ff044876e135bf7372aa0724e470b8fa558d0597ee",
+  "app/src/main/java/com/adnan/memora/backup/BackupEngine.kt": "6f1d9c26f4ebc39132fb8b09e6c5715de7bd17e076769860fd83bd74898b04a2",
+  "app/src/main/java/com/adnan/memora/backup/RecoveryEngine.kt": "47ceeac0b472996f6a438443ed1aac8466b565beff591eff082121bda5e5b2fc",
+  "app/src/main/java/com/adnan/memora/ui/screens/TelegramScreen.kt": "61d5131b772ff8cf59e5cb82420a28a52f7e13d3e1d7e19f31fe1f1507260be9",
+  "app/src/main/java/com/adnan/memora/ui/screens/RecoveryScreen.kt": "94daeab3cdcb194d121789ef4d74836664bc44478727bdc56b865ae30c650421"
+}

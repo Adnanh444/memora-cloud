@@ -83,7 +83,7 @@ fun BinScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                 Icon(Icons.Filled.Visibility, stringResource(R.string.ui_view_selected))
             }
             IconButton(enabled = trash.isNotEmpty(), onClick = { selected = BinSelection.toggleAll(selected, visibleKeys) }) {
-                Icon(if (selected.isNotEmpty() && selected.containsAll(visibleKeys)) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                ActionGlyph(if (selected.isNotEmpty() && selected.containsAll(visibleKeys)) Icons.Filled.Deselect else Icons.Filled.SelectAll,
                     stringResource(if (selected.isNotEmpty() && selected.containsAll(visibleKeys)) R.string.ui_deselect_all else R.string.select_all))
             }
         }

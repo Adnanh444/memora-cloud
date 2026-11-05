@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +35,7 @@ import kotlinx.coroutines.launch
 
 /** Everything that is backed up, shown with previews from the cloud. Originals are NOT stored on the phone. */
 @Composable
-fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: () -> Unit) {
+fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: () -> Unit, onSearch: () -> Unit = {}) {
     val ctx = LocalContext.current
     val items by vm.cloudFeed.collectAsState()
     val selecting by vm.selecting.collectAsState()
@@ -43,20 +44,20 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     val status by remember { TelegramClient.get(ctx) }.storageStatus.collectAsState()
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
 
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+    val header = rememberCollapsingHeader()
+    Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "cloudHeader") { sel ->
             if (sel) CloudSelectionHeader(vm, items)
             else Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); ThemeToggle()
+                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_cloud)) }; ThemeToggle()
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.rf_cloud_photos, cloudAll.count { !it.isVideo }), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.rf_cloud_videos, cloudAll.count { it.isVideo }), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
-                    Text(stringResource(R.string.rf_cloud_total, cloudAll.size), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
-                }
+
             }
         }
+        if (!selecting && status is StorageStatus.Verified) CoveragePanel(cloudAll.count { !it.isVideo }, cloudAll.count { it.isVideo }, null, null, header.compact, header::toggle)
+        if (status !is StorageStatus.Verified) Text(stringResource(R.string.lp_verify_to_count), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         dl?.let { DownloadStrip(it) }
         if (items.isNotEmpty()) {
             MediaGrid(
@@ -123,14 +124,14 @@ fun CloudSelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             if (selection.isEmpty()) stringResource(R.string.select_items) else stringResource(R.string.selected_count, selection.size),
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = { vm.selectAll(pool) }) { Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all)) }
+        IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         IconButton(onClick = {
             CloudDownloader.start(ctx, vm.selectedCloud())
             Toast.makeText(ctx, R.string.cl_downloading, Toast.LENGTH_SHORT).show()
             vm.clearSelection()
         }, enabled = selection.isNotEmpty()) { Icon(Icons.Filled.Download, stringResource(R.string.cl_download)) }
         IconButton(onClick = { confirm = true }, enabled = selection.isNotEmpty()) {
-            Icon(Icons.Filled.Delete, stringResource(R.string.delete))
+            ActionGlyph(Icons.Filled.Delete, stringResource(R.string.delete))
         }
         OrgMenu(vm, enabled = selection.isNotEmpty(), onDone = { vm.clearSelection() }, pickItems = { vm.selectedAny() })
     }

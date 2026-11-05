@@ -21,7 +21,7 @@ import com.adnan.memora.gallery.GalleryViewModel
 
 /** Favorites, Archive, or one album. Works with phone and cloud items together. */
 @Composable
-fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> Unit) {
+fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> Unit, onSearch: () -> Unit = {}) {
     val kind = vm.collectionKind
     val albumId = vm.collectionAlbumId
     val flow = remember(kind, albumId) {
@@ -78,6 +78,7 @@ fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () 
                     Text(stringResource(R.string.items_count, items.size), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_scope)) }
                 if (kind == CollectionKind.ALBUM) {
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.og_more)) }
@@ -113,7 +114,7 @@ fun CollectionScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () 
 }
 
 @Composable
-private fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adnan.memora.gallery.LocalMedia>, kind: CollectionKind, albumId: String) {
+internal fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adnan.memora.gallery.LocalMedia>, kind: CollectionKind, albumId: String) {
     val favoriteAction = rememberPhoneFavoriteAction { vm.refresh() }
     val selection by vm.selection.collectAsState()
     BackHandler { vm.clearSelection() }
@@ -123,7 +124,7 @@ private fun CollectionSelectionHeader(vm: GalleryViewModel, pool: List<com.adnan
             if (selection.isEmpty()) stringResource(R.string.select_items) else stringResource(R.string.selected_count, selection.size),
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = { vm.selectAll(pool) }) { Icon(Icons.Filled.SelectAll, stringResource(R.string.select_all)) }
+        IconButton(onClick = { if (pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) vm.selection.value = emptySet() else vm.selectAll(pool) }) { SelectionGlyph(pool.isNotEmpty() && selection.containsAll(pool.map { it.key })) }
         TextButton(
             enabled = selection.isNotEmpty(),
             onClick = {

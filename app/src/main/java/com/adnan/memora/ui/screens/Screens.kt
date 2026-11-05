@@ -85,6 +85,8 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit, onDuplicates: () -> Unit) {
     val ctx = LocalContext.current
     val auth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
+    val lockEnabled by com.adnan.memora.ui.AppLockSettings.enabled.collectAsState()
+    val toggleLock = com.adnan.memora.ui.rememberAppLockToggle()
     val tgLabel = stringResource(if (auth is com.adnan.memora.telegram.TgAuth.Ready) R.string.tg_connected else R.string.tg_disconnected)
     var showLang by remember { mutableStateOf(false) }
     val tag = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore('-')
@@ -97,6 +99,7 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
         Column(Modifier.fillMaxWidth().glass()) {
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
             SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), null, onBackup)
+            SettingRow(Icons.Filled.Lock, stringResource(R.string.lp_app_lock), stringResource(if (lockEnabled) R.string.lp_lock_on else R.string.lp_lock_off), toggleLock)
             SettingRow(Icons.Filled.Language, stringResource(R.string.language), langs.firstOrNull { it.first == tag }?.second) { showLang = true }
             SettingRow(Icons.Filled.Info, stringResource(R.string.about), null, onAbout)
         }

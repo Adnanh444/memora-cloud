@@ -22,6 +22,10 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import com.adnan.memora.gallery.CoverageMath
+import com.adnan.memora.gallery.CoverageItem
+import com.adnan.memora.data.BackupState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,13 +93,22 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
     val selecting by vm.selecting.collectAsState()
     val summary by vm.backupSummary.collectAsState()
 
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+    val all by vm.all.collectAsState()
+    val backup by vm.itemBackup.collectAsState()
+    val coverage = remember(all, backup) { CoverageMath.calculate(all.map { CoverageItem(it.key, it.isVideo) },
+        backup.filterValues { it.state == BackupState.VERIFIED }.keys) }
+    val destination by com.adnan.memora.telegram.TelegramClient.get(ctx).storageStatus.collectAsState()
+    val knownCoverage = destination is com.adnan.memora.telegram.StorageStatus.Verified
+    val header = rememberCollapsingHeader()
+    Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "header") { sel ->
             if (sel) SelectionHeader(vm, items)
             else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings)
         }
+        if (!selecting) CoveragePanel(coverage.photos.total, coverage.videos.total, if (knownCoverage) coverage.photos.verified else null, if (knownCoverage) coverage.videos.verified else null,
+            header.compact, header::toggle, phoneLibrary = true)
         BackupStrip(
-            summary, onOpen = onBackup,
+            summary, onOpen = onBackup, compact = header.compact || selecting,
             onAction = {
                 when {
                     summary.paused -> BackupEngine.resume(ctx)
@@ -145,7 +158,7 @@ private fun SearchPill(onSearch: () -> Unit, onSelect: () -> Unit, onSettings: (
 
 /** Backup status with a Pause / Resume button. Shows real state only. */
 @Composable
-fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
+fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit, compact: Boolean = false) {
     val cs = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(16.dp)
     val showAction = s.paused || s.phase == BackupPhase.RUNNING || (s.phase == BackupPhase.PAUSED && s.waiting > 0)
@@ -153,7 +166,7 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).animateContentSize()) {
         Row(
             Modifier.fillMaxWidth().clip(shape).background(cs.surfaceContainerHigh).border(1.dp, cs.outlineVariant, shape)
-                .clickable(onClick = onOpen).padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
+                .clickable(onClick = onOpen).padding(start = 14.dp, top = if (compact) 0.dp else 6.dp, bottom = if (compact) 0.dp else 6.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(Modifier.weight(1f).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -173,7 +186,7 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(stringResource(R.string.backing_up, s.done, s.total), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
-                            if (s.currentName != null) {
+                            if (!compact && s.currentName != null) {
                                 Text(
                                     "${s.currentName} · ${(s.currentProgress * 100).toInt()}%",
                                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
@@ -208,10 +221,10 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit) {
                 }
             }
         }
-        if (s.phase == BackupPhase.RUNNING && s.stage != null) {
+        if (!compact && s.phase == BackupPhase.RUNNING && s.stage != null) {
             Text(s.stage, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp, start = 8.dp))
         }
-        if (s.phase == BackupPhase.RUNNING && !s.paused) {
+        if (!compact && s.phase == BackupPhase.RUNNING && !s.paused) {
             LinearProgressIndicator(
                 progress = { if (s.total > 0) s.done.toFloat() / s.total else 0f },
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),

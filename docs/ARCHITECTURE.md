@@ -1,30 +1,20 @@
-# Architecture and revision boundaries
+# 0.9.4 architecture and scope
 
-## Completed baseline
+Phases 1–7 remain the existing foundation. The user selected 0.9.3 UI plus dark-mode text fixes, but **0.9.2 Telegram login/backup/recovery**.
 
-Phases **1–7 are completed** in the 0.9.0 baseline used here: foundation, local gallery, Telegram integration, backup, deduplication, cloud library and recovery. The previous Phase-1-only README/architecture wording was obsolete. The 0.9.2 work is a focused revision of that functioning app, not a rebuild of those phases.
+## UI and contrast
+- `gallery/CoverageMath` / `ui/screens/CoveragePanel`: readable-local denominator, VERIFIED ledger keys, animated rings/compact bars and non-consuming nested scroll.
+- `ui/MemoraApp`: four translucent selected tabs, scoped metadata search and explicit theme foreground on the transparent Scaffold.
+- `ui/theme/Theme`: LocalContentColor provided inside MaterialTheme, preventing plain text/icons from inheriting default black in dark mode. Existing component foreground roles and Day/Night palettes retained.
+- `ui/AppLockGate` / `data/AppLockPolicy`: optional Android credential modal, 30-second background grace and secure-window flags. Separate from launch authorization; no custom app PIN.
 
-One Gradle app module, Kotlin, Jetpack Compose/Material 3, Room, WorkManager and TDLib. Main source packages:
+## Legacy Telegram boundary
+The entire Telegram package, BackupEngine, RecoveryEngine, TelegramScreen and RecoveryScreen are byte-identical to delivered 0.9.2. Direct in-app API setup uses existing encrypted local storage and saved sessions. Local/custom build credentials remain an optional fallback; normal CI does not inject them or require their Secrets. Original signing Secrets/selection are preserved.
 
-- `gallery`: MediaStore reads, media models, gallery state and native-favorite flags.
-- `backup`: persistent backup ledger/hash cache, queue, foreground workers, recovery and temporary upload workspaces.
-- `telegram`: TDLib client, login/destination handling and Telegram-backed file operations.
-- `cloud`: thumbnail/full-image addressing, fetch and download support.
-- `org`: existing SHA-based archive/album metadata; historical favorite records remain preserved here.
-- `ui`: navigation, screens, previews, density gestures and theme.
-- `data`: existing preferences/application models.
+0.9.3 CredentialPolicy, HistoryScanRules and DestinationScope and their tests are no longer wired and have been removed from this branch. The original 0.9.3 branch/ZIP retains them. Strict scans, shared recovery operation lock, positive-page persistence, metadata warning state, held-ID rediscovery correction, automatic logout pause and backend destination scoping are therefore absent. This deliberate rollback is not a claim of improved recovery security.
 
-## 0.9.2 state and persistence
+## Unchanged foundation
+Room schema 2, SHA cache, upload run gate/workspace/acknowledgment rules, CONFIRMING queue behavior, WorkManager scheduling, storage/key notes, metadata/album/archive formats, native favorites, bins, Cloud download addressing, permissions, signing configuration and existing importer/key-generation workflows remain. No new credential/media server, recovery-key scheme, destructive remote operation or data reset.
 
-- Appearance: `memora_clear_appearance` SharedPreferences, `dark` boolean, default light.
-- Grid density: `memora_grid_density` SharedPreferences, separate `gallery`, `cloud`, `albums`, `device-bin`, `cloud-bin` keys, default 2. UI clamps by available width without persisting a rotation-only clamp.
-- Favorites: Android 11+ MediaStore flag plus Android consent; not Google account/private gallery API access. Organization schema/metadata remains intact for archives/albums and old favorite records.
-- Upload safety: one backup-run gate, isolated attempt directories, bounded send/idle/overall/verification waits. `CONFIRMING` extends the existing text state without a Room schema change. It is excluded from automatic pending/retry queries. Positive confirmation or an explicit owner-approved resend releases a held transfer.
-
-## Scope protections
-
-The delivery's backend inventory records the eight intentionally changed existing non-UI files and the three new upload helpers. Other backend files, MediaActions, the manifest, ProGuard rules and original import/signing-key workflows are compared byte-for-byte to the baseline. It is **not** a claim that every backend file is unchanged: native favorites and upload fixes were explicitly authorized.
-
-No storage/recovery/album rewrite, Telegram protocol replacement, new developer server, special media-management permission, or main-branch cleanup is part of this revision. Telegram storage availability and account/file limits still apply.
-
-See `IMPLEMENTATION.md` for build, consent, uncertainty recovery and phone-acceptance details; see `TEST-REPORT.md` for what has actually been tested.
+## Boundaries
+Coverage reflects the legacy installation ledger and is not proof of account/destination isolation or download-and-rehash integrity. Use one account/destination and pause manually before logout/recovery. See IMPLEMENTATION.md for recovery caveats. AI/face models, deployed approval and production security/profile isolation remain open in LAUNCH-AND-AI.md. Tests/static contrast math do not replace device/Telegram tests.

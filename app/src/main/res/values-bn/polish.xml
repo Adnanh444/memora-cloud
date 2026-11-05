@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="lp_phone_coverage">ফোনের ব্যাকআপের অবস্থা</string>
+    <string name="lp_cloud_library">ক্লাউড লাইব্রেরি</string>
+    <string name="lp_expand">বিস্তারিত দেখুন</string>
+    <string name="lp_collapse">বিস্তারিত ছোট করুন</string>
+    <string name="lp_coverage_note">শুধু পড়ার অনুমতি থাকা ফোনের মিডিয়া। বৃত্তে যাচাই করা ব্যাকআপ দেখায়, নিশ্চিত হওয়ার অপেক্ষায় থাকা আপলোড নয়।</string>
+    <string name="lp_verified_ratio">%1$s: %3$dটির মধ্যে %2$dটি যাচাই করা হয়েছে</string>
+    <string name="lp_backed_up">%1$dটি যাচাই করা</string>
+    <string name="lp_advanced_login">উন্নত: নিজের API তথ্য ব্যবহার করুন</string>
+    <string name="lp_login_setup">এই বিল্ডে অ্যাপের API তথ্য নেই। অ্যাপের মালিকের কাছ থেকে প্রস্তুত বিল্ড নিন অথবা নিচের উন্নত সেটআপ ব্যবহার করুন। প্রত্যেক ব্যবহারকারী নিজের টেলিগ্রাম অ্যাকাউন্টে প্রবেশ করবেন।</string>
+    <string name="lp_recovery_partial">উদ্ধার বাধাগ্রস্ত হয়েছে। সূচিভুক্ত মিডিয়া রাখা হয়েছে। নিরাপদে আবার স্ক্যান করুন; অসম্পূর্ণ স্ক্যান সফল উদ্ধার নয়।</string>
+    <string name="lp_metadata_warning">ছবির সূচি উদ্ধার হয়েছে, কিন্তু অ্যালবাম ও আর্কাইভের তথ্য উদ্ধার হয়নি। আবার চেষ্টা করুন; টেলিগ্রামের কী নোট বা মেটাডেটা ফাইল মুছবেন না।</string>
+    <string name="lp_restore_note">নতুন ফোন বা পুনরায় ইনস্টল? একই টেলিগ্রাম অ্যাকাউন্টে প্রবেশ করে নতুন স্টোরেজ তৈরির আগে পুরনো ব্যাকআপ উদ্ধার করুন। ক্লাউড থেকে আসল ফাইল আলাদা করে ডাউনলোড করতে হবে।</string>
+    <string name="lp_search_scope">এই সংগ্রহে খুঁজুন</string>
+    <string name="lp_search_local">ফোনে খুঁজুন</string>
+    <string name="lp_search_cloud">ক্লাউড সূচিতে খুঁজুন</string>
+    <string name="lp_search_note">নাম, ফোল্ডার, তারিখ ও মিডিয়ার ধরন খুঁজুন। এই বিল্ডে ভিজুয়াল AI ও মুখের ভিত্তিতে গ্রুপ করা চালু নেই।</string>
+    <string name="lp_app_lock">অ্যাপ লক</string>
+    <string name="lp_unlock">ফোনের স্ক্রিন লক দিয়ে খুলুন</string>
+    <string name="lp_lock_description">অ্যাপ খোলার সময় এবং ব্যাকগ্রাউন্ডে ৩০ সেকেন্ড থাকার পর মেমোরাকে সুরক্ষিত রাখুন। ফোনের পিন, প্যাটার্ন বা পাসওয়ার্ড ব্যবহার হবে। ব্যাকগ্রাউন্ড ব্যাকআপ চলতে পারে।</string>
+    <string name="lp_lock_on">চালু · স্ক্রিনশট বন্ধ</string>
+    <string name="lp_lock_off">বন্ধ · চাইলে ফোনের স্ক্রিন লক দিয়ে সুরক্ষিত করুন</string>
+    <string name="lp_verify_to_count">ব্যাকআপের অবস্থা দেখতে টেলিগ্রাম অ্যাকাউন্ট ও স্টোরেজ যাচাই করুন। ক্লাউড সূচি লুকানো মানে ব্যাকআপ মুছে যাওয়া নয়।</string>
+</resources>

@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +42,7 @@ fun LibraryScreen(
     onArchive: () -> Unit,
     onAlbum: (String) -> Unit,
     onFreeUp: () -> Unit,
+    onSearch: () -> Unit = {},
 ) {
     val folders by vm.folders.collectAsState()
     val trash by vm.trash.collectAsState()
@@ -57,6 +58,8 @@ fun LibraryScreen(
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             GradientTitle(stringResource(R.string.rf_albums), Modifier.weight(1f))
+            IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_local)) }
+            IconButton(onClick = { newAlbum = true }) { Icon(Icons.Outlined.CreateNewFolder, stringResource(R.string.og_new_album)) }
             ThemeToggle()
         }
         PinchGrid("albums", Modifier.weight(1f)) { columns, gesture ->
@@ -67,6 +70,18 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UtilityTile(Icons.Outlined.ContentCopy, stringResource(R.string.dup_title), MaterialTheme.colorScheme.primary, Modifier.weight(1f), onDuplicates)
+                        UtilityTile(Icons.Outlined.CleaningServices, stringResource(R.string.fu_title), MaterialTheme.colorScheme.secondary, Modifier.weight(1f), onFreeUp)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UtilityTile(Icons.Outlined.DeleteOutline, stringResource(R.string.bin), MaterialTheme.colorScheme.error, Modifier.weight(1f), onBin)
+                        UtilityTile(Icons.Outlined.CloudQueue, stringResource(R.string.cl_bin), MaterialTheme.colorScheme.tertiary, Modifier.weight(1f), onCloudBin)
+                    }
+                }
+            }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.og_collections)) }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LibraryRow(Icons.Filled.Favorite, stringResource(R.string.og_favorites), stringResource(R.string.items_count, favs.size), onFavorites)
@@ -75,17 +90,6 @@ fun LibraryScreen(
                 LibraryRow(Icons.Filled.Archive, stringResource(R.string.og_archive), stringResource(R.string.items_count, arch.size), onArchive)
             }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.og_albums)) }
-            item {
-                Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable { newAlbum = true }) {
-                    Box(
-                        Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
-                        Alignment.Center,
-                    ) { Icon(Icons.Filled.Add, null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary) }
-                    Text(stringResource(R.string.og_new_album), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-                }
-            }
             items(albums, key = { "album:" + it.id }) { al ->
                 Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable { onAlbum(al.id) }) {
                     Box(
@@ -106,25 +110,20 @@ fun LibraryScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
                 }
             }
-            item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.utilities)) }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                LibraryRow(Icons.Outlined.ContentCopy, stringResource(R.string.dup_title), stringResource(R.string.dup_sub), onDuplicates)
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                LibraryRow(Icons.Filled.DeleteSweep, stringResource(R.string.fu_title), stringResource(R.string.fu_sub), onFreeUp)
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                val sub = if (Build.VERSION.SDK_INT >= 30) stringResource(R.string.bin_sub, trash.size)
-                else stringResource(R.string.bin_need_r)
-                LibraryRow(Icons.Filled.Delete, stringResource(R.string.bin), sub, onBin)
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                LibraryRow(Icons.Filled.CloudQueue, stringResource(R.string.cl_bin), stringResource(R.string.cl_bin_sub, cloudTrash.size), onCloudBin)
-            }
             item(span = { GridItemSpan(maxLineSpan) }) { SectionLabel(stringResource(R.string.folders_section)) }
             items(folders, key = { it.name }) { f -> FolderCard(f) { onFolder(f.name) } }
         }
         }
+    }
+}
+
+@Composable
+private fun UtilityTile(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String,
+    tint: androidx.compose.ui.graphics.Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clip(RoundedCornerShape(18.dp)).background(tint.copy(alpha = .10f)).clickable(onClick = onClick)
+        .heightIn(min = 96.dp).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+        Text(title, style = MaterialTheme.typography.labelLarge, maxLines = 2, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -173,7 +172,7 @@ private fun FolderCard(f: FolderInfo, onClick: () -> Unit) {
 }
 
 @Composable
-fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenViewer: () -> Unit) {
+fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenViewer: () -> Unit, onSearch: () -> Unit = {}) {
     val all by vm.all.collectAsState()
     val list = remember(all, name) { all.filter { it.bucket == name } }
     val selecting by vm.selecting.collectAsState()
@@ -193,6 +192,7 @@ fun FolderScreen(vm: GalleryViewModel, name: String, onBack: () -> Unit, onOpenV
                     Text(stringResource(R.string.items_count, list.size), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_scope)) }
             }
         }
         MediaGrid(list = list, vm = vm, onOpen = { i -> vm.openViewer(list, i); onOpenViewer() }, modifier = Modifier.fillMaxSize(), gridKey = "albums")
