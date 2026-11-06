@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.adnan.memora.R
@@ -104,10 +105,13 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                         progress = { if (summary.total > 0) summary.done.toFloat() / summary.total else 0f },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
                     )
-                    if (summary.currentName != null) {
-                        Text("${summary.currentName} · ${(summary.currentProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    // one reserved line, so a long or short name never reflows this screen
+                    Text(
+                        text = summary.currentName?.let { "$it · ${(summary.currentProgress * 100).toInt()}%" } ?: " ",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.heightIn(min = 16.dp),
+                    )
                 }
                 summary.stage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 if (summary.needsConfirmation > 0) {

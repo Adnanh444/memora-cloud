@@ -63,6 +63,7 @@ fun DuplicatesScreen(vm: GalleryViewModel, onBack: () -> Unit) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             },
         )
+        CloudDuplicateCard()
         when (val s = state) {
             is DupState.Idle -> Column(
                 Modifier.fillMaxWidth().padding(16.dp).glass().padding(18.dp),

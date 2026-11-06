@@ -167,7 +167,10 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit, comp
     val shape = RoundedCornerShape(16.dp)
     val showAction = s.paused || s.phase == BackupPhase.RUNNING || (s.phase == BackupPhase.PAUSED && s.waiting > 0)
     val showPlay = s.paused || s.phase != BackupPhase.RUNNING
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).animateContentSize()) {
+    // Fixed height on purpose: this strip sits above the grid, so any height change here
+    // shifts the whole page. The file-name line is always reserved even when nothing is
+    // uploading, and nothing in here animates its size.
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(
             Modifier.fillMaxWidth().clip(shape).background(cs.surfaceContainerHigh).border(1.dp, cs.outlineVariant, shape)
                 .clickable(onClick = onOpen).padding(start = 14.dp, top = if (compact) 0.dp else 6.dp, bottom = if (compact) 0.dp else 6.dp, end = 6.dp),
@@ -190,11 +193,13 @@ fun BackupStrip(s: BackupSummary, onOpen: () -> Unit, onAction: () -> Unit, comp
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(stringResource(R.string.backing_up, s.done, s.total), style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
-                            if (!compact && s.currentName != null) {
+                            if (!compact) {
+                                // Always present, always one line: long and short names cost the same height.
                                 Text(
-                                    "${s.currentName} · ${(s.currentProgress * 100).toInt()}%",
+                                    text = s.currentName?.let { "$it · ${(s.currentProgress * 100).toInt()}%" } ?: " ",
                                     style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.heightIn(min = 16.dp),
                                 )
                             }
                         }

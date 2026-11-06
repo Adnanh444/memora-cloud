@@ -6,6 +6,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -24,7 +25,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -37,6 +40,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import com.adnan.memora.R
 import com.adnan.memora.backup.BackupEngine
 import com.adnan.memora.telegram.StorageStatus
@@ -108,10 +115,18 @@ fun MediaGrid(
     val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
     val gap = 4.dp
 
-    // Long-press then drag: keep selecting (or keep deselecting) every cell the finger crosses.
+    // ---- long-press + drag selection -------------------------------------------------
+    // Press one cell and keep dragging: every cell the finger crosses flips in the same
+    // direction as the first one. Fast drags are interpolated so nothing is skipped, the
+    // list auto-scrolls when the finger reaches an edge, and each flip gives a light tick.
     var dragSelect by remember { mutableStateOf(false) }
     var lastDraggedKey by remember { mutableStateOf<String?>(null) }
+    var lastDragPoint by remember { mutableStateOf<Offset?>(null) }
     var gridCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val edgePx = with(LocalDensity.current) { 90.dp.toPx() }
 
     fun entryUnder(root: Offset): Entry.Item? {
         val coords = gridCoords?.takeIf { it.isAttached } ?: return null
@@ -123,13 +138,60 @@ fun MediaGrid(
         return built.entries.getOrNull(info.index) as? Entry.Item
     }
 
-    fun selectAlong(root: Offset) {
+    /** Flips one cell, but only if it is still on the wrong side of the drag direction. */
+    fun flipAt(root: Offset) {
         val entry = entryUnder(root) ?: return
         val key = entry.media.key
         if (key == lastDraggedKey) return
         lastDraggedKey = key
-        val alreadySelected = key in selection
-        if (dragSelect != alreadySelected) vm.toggle(key)
+        val isSelected = key in vm.selection.value
+        if (dragSelect == isSelected) return
+        vm.toggle(key)
+        try { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Throwable) {}
+    }
+
+    fun cellPitch(): Float {
+        val first = state.layoutInfo.visibleItemsInfo.firstOrNull { !built.entries.getOrNull(it.index).isHeader() }
+            ?: return 1f
+        return minOf(first.size.width, first.size.height).toFloat().coerceAtLeast(1f)
+    }
+
+    /** Walks the segment between two finger samples so no cell is jumped over. */
+    fun dragAlong(root: Offset) {
+        val previous = lastDragPoint
+        lastDragPoint = root
+        if (previous == null) { flipAt(root); return }
+        val delta = root - previous
+        val steps = (delta.getDistance() / (cellPitch() * 0.4f)).toInt().coerceIn(1, 32)
+        for (i in 1..steps) flipAt(previous + delta * (i / steps.toFloat()))
+    }
+
+    /** Keeps scrolling while the finger rests near the top or bottom edge. */
+    fun autoScroll(root: Offset) {
+        val coords = gridCoords?.takeIf { it.isAttached }
+        if (coords == null) { scrollJob?.cancel(); scrollJob = null; return }
+        val top = coords.localToRoot(Offset.Zero).y
+        val bottom = top + coords.size.height
+        val direction = when {
+            root.y < top + edgePx -> -1f
+            root.y > bottom - edgePx -> 1f
+            else -> 0f
+        }
+        if (direction == 0f) { scrollJob?.cancel(); scrollJob = null; return }
+        if (scrollJob?.isActive == true) return
+        scrollJob = scope.launch {
+            while (isActive) {
+                state.scrollBy(direction * 14f)
+                delay(16)
+                flipAt(root)
+            }
+        }
+    }
+
+    fun endDrag() {
+        scrollJob?.cancel(); scrollJob = null
+        lastDragPoint = null
+        lastDraggedKey = null
     }
 
     PinchGrid(gridKey, modifier) { columns, gesture ->
@@ -168,10 +230,13 @@ fun MediaGrid(
                             val wasSelected = key in vm.selection.value
                             dragSelect = !wasSelected
                             lastDraggedKey = key
+                            lastDragPoint = root
                             vm.toggle(key)
+                            try { haptics.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Throwable) {}
+                            autoScroll(root)
                         },
-                        onDrag = { root -> selectAlong(root) },
-                        onDragEnd = { lastDraggedKey = null },
+                        onDrag = { root -> dragAlong(root); autoScroll(root) },
+                        onDragEnd = { endDrag() },
                     )
                 }
             }
@@ -331,6 +396,8 @@ private fun MediaCell(
         }
     }
 }
+
+private fun Any?.isHeader(): Boolean = this is Entry.Header
 
 /** Tiny cloud status on a thumbnail: uploading (with progress), backed up, not backed up, failed. */
 @Composable

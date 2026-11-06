@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.adnan.memora.R
+import com.adnan.memora.backup.BackupEngine
+import com.adnan.memora.cloud.CloudUri
 import com.adnan.memora.data.MediaBin
 import com.adnan.memora.gallery.LocalMedia
 import kotlinx.coroutines.Dispatchers
@@ -95,16 +97,29 @@ fun rememberDeleteAction(onDone: () -> Unit): (List<LocalMedia>) -> Unit {
 
     return { items ->
         if (items.isNotEmpty()) {
-            if (MediaBin.enabled(ctx)) {
-                working = true
+            // Cloud items belong to the cloud bin (Albums → Cloud bin), never to the phone bin.
+            val cloudKeys = items.filter { CloudUri.isCloud(it.uri) }.map { it.key }
+            val localItems = items.filterNot { CloudUri.isCloud(it.uri) }
+
+            if (cloudKeys.isNotEmpty()) {
                 scope.launch {
-                    val moved = withContext(Dispatchers.IO) { MediaBin.moveToBin(ctx, items) }
-                    working = false
-                    onDoneL()
-                    Toast.makeText(ctx, ctx.getString(R.string.mb_moved, moved), Toast.LENGTH_SHORT).show()
+                    BackupEngine.trashCloudForLocal(ctx, cloudKeys)
+                    if (localItems.isEmpty()) onDoneL()
                 }
-            } else {
-                askPermission = true
+            }
+
+            if (localItems.isNotEmpty()) {
+                if (MediaBin.enabled(ctx)) {
+                    working = true
+                    scope.launch {
+                        val moved = withContext(Dispatchers.IO) { MediaBin.moveToBin(ctx, localItems) }
+                        working = false
+                        onDoneL()
+                        Toast.makeText(ctx, ctx.getString(R.string.mb_moved, moved), Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    askPermission = true
+                }
             }
         }
     }

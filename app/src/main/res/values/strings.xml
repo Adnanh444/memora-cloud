@@ -280,4 +280,20 @@
     <string name="fu_verifying">Checking each item with the cloud…</string>
     <string name="fu_failed">None of the selected items could be verified in the cloud, so nothing was deleted.</string>
     <string name="fu_skipped">%1$d items could not be verified and were kept on your phone.</string>
+    <string name="cdup_title">Cloud copies</string>
+    <string name="cdup_intro">Checks the Telegram channel itself and reports any file that is stored more than once. Nothing is uploaded or changed while it checks.</string>
+    <string name="cdup_scan">Check the cloud for copies</string>
+    <string name="cdup_scan_again">Check again</string>
+    <string name="cdup_scanning">Reading the cloud… %1$d files</string>
+    <string name="cdup_none">No file is stored twice in your cloud. Every photo and video has exactly one copy.</string>
+    <string name="cdup_result">%1$d files are stored more than once · %2$d extra copies · %3$s</string>
+    <string name="cdup_keep_oldest">The first copy of each file is always kept. Only the extra copies are removed.</string>
+    <string name="cdup_remove">Remove the extra copies</string>
+    <string name="cdup_working">Removing %1$d of %2$d…</string>
+    <string name="cdup_removed">%1$d extra copies removed. %2$d went to the cloud bin and can be restored for 30 days.</string>
+    <string name="cdup_confirm_title">Remove extra copies?</string>
+    <string name="cdup_confirm_body">%1$d extra copies will be removed from Telegram. The first copy of every file stays, and nothing on your phone is touched. Copies the app still tracks go to the cloud bin for 30 days; copies it no longer tracks are deleted from the channel directly.</string>
+    <string name="cdup_offline">Telegram is not connected right now. Connect it and try again.</string>
+    <string name="cdup_no_storage">No backup storage is set up in this app.</string>
+    <string name="cdup_failed">The cloud could not be read. Please try again.</string>
 </resources>
