@@ -112,7 +112,7 @@ fun MemoraApp() {
                     LibraryScreen(
                         gallery,
                         onFolder = { name -> gallery.openFolderName = name; nav.navigate("folder") },
-                        onBin = { nav.navigate("bin") },
+                        onBin = { nav.navigate("memorabin") },
                         onCloudBin = { nav.navigate("cloudbin") },
                         onDuplicates = { nav.navigate("duplicates") },
                         onFavorites = { gallery.collectionKind = CollectionKind.FAVORITES; nav.navigate("collection") },

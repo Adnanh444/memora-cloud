@@ -152,6 +152,20 @@ class RetainedInterfaceContracts(unittest.TestCase):
             self.assertIn(member, bin_file)
         self.assertIn("MANAGE_EXTERNAL_STORAGE", (ROOT / "app/src/main/AndroidManifest.xml").read_text())
 
+    def test_cloud_deletes_never_enter_the_phone_bin(self):
+        actions = (JAVA / "ui/screens/MediaActions.kt").read_text()
+        delete_fn = actions.split("fun rememberDeleteAction", 1)[1].split("class BinActions", 1)[0]
+        self.assertIn("CloudUri.isCloud", delete_fn)
+        self.assertIn("trashCloudForLocal", delete_fn)
+        # only the local items are handed to the phone bin
+        self.assertIn("MediaBin.moveToBin(ctx, localItems)", delete_fn)
+        # the bin screens live in Albums, not in Settings
+        settings = (JAVA / "ui/screens/Screens.kt").read_text()
+        self.assertNotIn("MediaBin.items", settings)
+        app = (JAVA / "ui/MemoraApp.kt").read_text()
+        self.assertIn('onBin = { nav.navigate("memorabin") }', app)
+        self.assertIn('onCloudBin = { nav.navigate("cloudbin") }', app)
+
     def test_filter_pill_is_shared_by_gallery_cloud_and_search(self):
         for screen in ("PhotosScreen.kt", "CloudScreen.kt", "SearchScreen.kt"):
             self.assertIn("applyMediaFilter", (JAVA / "ui/screens" / screen).read_text())
@@ -206,10 +220,27 @@ class RetainedInterfaceContracts(unittest.TestCase):
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("rememberSaveable(gridKey", grid)
 
-    def test_version_is_1_1_0(self):
+    def test_version_is_1_1_1(self):
         gradle = (ROOT / "app/build.gradle.kts").read_text()
-        self.assertIn('versionName = "1.1.0"', gradle)
-        self.assertIn("versionCode = 21", gradle)
+        self.assertIn('versionName = "1.1.1"', gradle)
+        self.assertIn("versionCode = 22", gradle)
+
+    def test_upload_strip_keeps_a_constant_height(self):
+        """The strip sits above the grid: a variable-height name line was moving the whole page."""
+        screen = (JAVA / "ui/screens/PhotosScreen.kt").read_text()
+        strip = screen.split("fun BackupStrip", 1)[1].split("\n}", 1)[0]
+        self.assertNotIn("animateContentSize", strip)
+        self.assertIn("softWrap = false", strip)
+        backup = (JAVA / "ui/screens/BackupScreen.kt").read_text()
+        self.assertIn("softWrap = false", backup)
+
+    def test_drag_selection_is_interpolated_and_auto_scrolls(self):
+        grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
+        self.assertIn("fun dragAlong", grid)
+        self.assertIn("cellPitch()", grid)
+        self.assertIn("fun autoScroll", grid)
+        self.assertIn("state.scrollBy", grid)
+        self.assertIn("performHapticFeedback", grid)
 
     def test_optional_lock_uses_system_credential_not_stored_custom_pin(self):
         lock = (JAVA / "ui/AppLockGate.kt").read_text()
