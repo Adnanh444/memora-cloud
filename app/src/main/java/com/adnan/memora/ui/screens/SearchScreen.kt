@@ -46,7 +46,10 @@ fun SearchScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenViewer: () -> U
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
-    val results = remember(pool, query) { if (query.isBlank()) emptyList() else SearchEngine.search(pool, query) }
+    val mediaFilter by vm.mediaFilter.collectAsState()
+    val results = remember(pool, query, mediaFilter) {
+        if (query.isBlank()) emptyList() else applyMediaFilter(SearchEngine.search(pool, query), mediaFilter)
+    }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Crossfade(selecting, label = "searchHeader") { sel ->

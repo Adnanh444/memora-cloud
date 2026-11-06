@@ -17,8 +17,8 @@ android {
         applicationId = "com.adnan.memora"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.9.5"
+        versionCode = 21
+        versionName = "1.1.0"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
         buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())

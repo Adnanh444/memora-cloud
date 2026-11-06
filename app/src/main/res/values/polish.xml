@@ -36,4 +36,30 @@
     <string name="tg_password_body">Your account has two-step verification enabled. Enter that password; it never leaves the device.</string>
     <string name="tg_show_password">Show password</string>
     <string name="tg_hide_password">Hide password</string>
+
+    <!-- 0.9.6: silent delete + Memora bin, filter pill -->
+    <string name="mb_title">Memora bin</string>
+    <string name="mb_count">%1$d items · %2$s</string>
+    <string name="mb_empty">The bin is empty</string>
+    <string name="mb_empty_sub">Deleted photos and videos wait here for 30 days, then they are removed for good.</string>
+    <string name="mb_empty_action">Empty bin</string>
+    <string name="mb_empty_confirm">Permanently delete everything in the bin? This cannot be undone.</string>
+    <string name="mb_restore">Restore</string>
+    <string name="mb_delete_forever">Delete forever</string>
+    <string name="mb_restored">Restored to the gallery</string>
+    <string name="mb_restore_failed">Could not restore that file</string>
+    <string name="mb_days_left">%1$d days left</string>
+    <string name="mb_moved">Moved %1$d to the bin</string>
+    <string name="del_perm_title">Stop the Allow / Deny question</string>
+    <string name="del_perm_body">Normally Android asks Allow or Deny every time an app deletes a photo. To remove that question Memora needs "All files access". After that a delete quietly moves the file into Memora\'s bin, where you can restore it for 30 days. Memora uses the permission only when you delete something.</string>
+    <string name="del_perm_open">Open the setting</string>
+    <string name="del_perm_later">Not now</string>
+    <string name="set_bin">Memora bin</string>
+    <string name="set_allfiles">Silent delete (All files access)</string>
+    <string name="set_allfiles_on">Allowed</string>
+    <string name="set_allfiles_off">Needs permission</string>
+    <string name="flt_all">All</string>
+    <string name="flt_photos">Photos</string>
+    <string name="flt_videos">Videos</string>
+    <string name="rf_upload_partial_removed">An unfinished upload was removed and queued again</string>
 </resources>

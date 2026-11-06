@@ -1,4 +1,20 @@
 # Changelog
+## 1.1.0 — upload stability, no-dialog delete, floating controls (code 21)
+- Upload page no longer jumps to the top while files are being backed up.
+- Pause finishes the file in flight and stops between files, so no partial or corrupt upload is ever left; leftover temp files are purged at every run, and an interrupted upload has its half-arrived message deleted before being queued again.
+- Delete no longer shows Android's Allow / Deny sheet (Memora bin + All files access, explained in plain language).
+- Memora bin with 30-day retention, restore, delete forever, empty.
+- Compact floating nav bar, All / Photos / Videos pill on Gallery, Cloud and Search.
+- Long-press and drag to select or deselect in order.
+
+## 0.9.6 — silent delete + Memora bin, bottom filter pill, drag select
+- **No more Allow / Deny on delete.** Deleting a photo no longer opens Android's system confirmation. With "All files access" granted once (Settings → Silent delete), a delete moves the file into **Memora's own bin** and the gallery updates immediately. Without the permission nothing is deleted and the app explains the setting in plain words — it never asks Android for permission per file.
+- **Memora bin:** deleted photos and videos wait 30 days, then are purged. Restore puts a file back at its exact original path; "delete forever" and "empty bin" remove it at once. Reached from Settings.
+- **All / Photos / Videos pill:** a small three-icon pill floats at the bottom centre of the Gallery, Cloud and Search grids, colour-matched to the gold photo and blue video accents. It hides while selecting.
+- **Compact floating nav bar:** the four tabs now sit in a centred floating capsule with small icons instead of a full-width bar.
+- **Long-press + drag to select:** press and hold a photo, then drag — every cell the finger crosses is selected in order. If the cell you pressed was already selected, the drag deselects the same way.
+- Version code 20. Everything from 0.9.5 is untouched.
+
 ## 0.9.5 — Photo/video controls, in-app playback and data-friendly cloud previews
 - Matching theme-aware gold photo / blue video rings and compact lines; independent persistent Gallery/Cloud visibility controls.
 - Compact numeric selection badges and a narrow bottom-only photo toolbar; readable system bars in the black viewer.

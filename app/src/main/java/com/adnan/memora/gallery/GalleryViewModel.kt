@@ -37,6 +37,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
+    /** All / Photos / Videos, shared by the Gallery, Cloud and Search grids. */
+    val mediaFilter = MutableStateFlow(com.adnan.memora.ui.screens.MediaFilter.ALL)
     val selection = MutableStateFlow<Set<String>>(emptySet())
     val selectMode = MutableStateFlow(false)
     val selecting: StateFlow<Boolean> = combine(selectMode, selection) { m, s -> m || s.isNotEmpty() }

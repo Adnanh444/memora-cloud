@@ -12,10 +12,23 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.adnan.memora.R
+import com.adnan.memora.data.MediaBin
 import com.adnan.memora.gallery.LocalMedia
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Opens the Android share sheet for one or more local photos/videos. */
 fun shareMedia(ctx: Context, items: List<LocalMedia>) {
@@ -42,50 +55,56 @@ fun shareMedia(ctx: Context, items: List<LocalMedia>) {
     try { ctx.startActivity(Intent.createChooser(intent, null)) } catch (_: Exception) {}
 }
 
-private class DeleteState { var pending: List<Uri> = emptyList(); var run: (List<Uri>) -> Unit = {} }
-
 /**
- * "Delete from device". Only ever touches the local file.
- * Android 11+: moves to the phone's trash through the system confirmation dialog (recoverable 30 days).
- * Android 8-10: deletes directly (asking Android for permission where required).
+ * "Delete from device" — no Android Allow/Deny sheet, ever.
+ *
+ * The file is moved into Memora's own bin (restorable for 30 days) using plain file access.
+ * That only works with "All files access"; without it Android would force its own
+ * confirmation dialog, so instead the app explains the setting once and deletes nothing.
  */
 @Composable
 fun rememberDeleteAction(onDone: () -> Unit): (List<LocalMedia>) -> Unit {
     val ctx = LocalContext.current
     val onDoneL by rememberUpdatedState(onDone)
-    val state = remember { DeleteState() }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
-        if (r.resultCode == Activity.RESULT_OK) {
-            if (Build.VERSION.SDK_INT < 30 && state.pending.isNotEmpty()) state.run(state.pending) else onDoneL()
+    val scope = rememberCoroutineScope()
+    var askPermission by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+
+    if (askPermission) {
+        AlertDialog(
+            onDismissRequest = { askPermission = false },
+            title = { Text(stringResource(R.string.del_perm_title)) },
+            text = { Text(stringResource(R.string.del_perm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    askPermission = false
+                    runCatching { ctx.startActivity(MediaBin.settingsIntent(ctx)) }
+                }) { Text(stringResource(R.string.del_perm_open)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { askPermission = false }) { Text(stringResource(R.string.del_perm_later)) }
+            },
+        )
+    }
+
+    if (working) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
         }
     }
-    state.run = { uris ->
-        var index = 0
-        var finished = true
-        for (u in uris) {
-            try {
-                ctx.contentResolver.delete(u, null, null)
-            } catch (e: SecurityException) {
-                if (Build.VERSION.SDK_INT >= 29 && e is RecoverableSecurityException) {
-                    state.pending = uris.drop(index)
-                    launcher.launch(IntentSenderRequest.Builder(e.userAction.actionIntent.intentSender).build())
-                    finished = false
-                    break
-                }
-                Toast.makeText(ctx, R.string.delete_failed, Toast.LENGTH_SHORT).show()
-            }
-            index++
-        }
-        if (finished) { state.pending = emptyList(); onDoneL() }
-    }
+
     return { items ->
-        val uris = items.map { it.uri }
-        if (uris.isNotEmpty()) {
-            if (Build.VERSION.SDK_INT >= 30) {
-                val pi = MediaStore.createTrashRequest(ctx.contentResolver, uris, true)
-                launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
+        if (items.isNotEmpty()) {
+            if (MediaBin.enabled(ctx)) {
+                working = true
+                scope.launch {
+                    val moved = withContext(Dispatchers.IO) { MediaBin.moveToBin(ctx, items) }
+                    working = false
+                    onDoneL()
+                    Toast.makeText(ctx, ctx.getString(R.string.mb_moved, moved), Toast.LENGTH_SHORT).show()
+                }
             } else {
-                state.run(uris)
+                askPermission = true
             }
         }
     }

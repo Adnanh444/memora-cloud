@@ -38,7 +38,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: () -> Unit, onSearch: () -> Unit = {}) {
     val ctx = LocalContext.current
-    val items by vm.cloudFeed.collectAsState()
+    val rawCloud by vm.cloudFeed.collectAsState()
+    val mediaFilter by vm.mediaFilter.collectAsState()
+    val items = remember(rawCloud, mediaFilter) { applyMediaFilter(rawCloud, mediaFilter) }
     val selecting by vm.selecting.collectAsState()
     val cloudAll by vm.cloudMedia.collectAsState()
     val dl by CloudDownloader.state.collectAsState()

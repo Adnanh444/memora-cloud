@@ -36,4 +36,30 @@
     <string name="tg_password_body">আপনার অ্যাকাউন্টে দুই-ধাপ যাচাই চালু আছে। সেই পাসওয়ার্ড দিন; এটি ডিভাইস ছাড়ে না।</string>
     <string name="tg_show_password">পাসওয়ার্ড দেখুন</string>
     <string name="tg_hide_password">পাসওয়ার্ড লুকান</string>
+
+    <!-- 0.9.6: নীরব ডিলিট + মেমোরা বিন, ফিল্টার পিল -->
+    <string name="mb_title">মেমোরা বিন</string>
+    <string name="mb_count">%1$d আইটেম · %2$s</string>
+    <string name="mb_empty">বিন খালি আছে</string>
+    <string name="mb_empty_sub">মুছে ফেলা ছবি ও ভিডিও এখানে ৩০ দিন থাকে, এরপর স্থায়ীভাবে মুছে যায়।</string>
+    <string name="mb_empty_action">বিন খালি করুন</string>
+    <string name="mb_empty_confirm">বিনের সবকিছু স্থায়ীভাবে মুছে ফেলবেন? এটি আর ফেরানো যাবে না।</string>
+    <string name="mb_restore">ফিরিয়ে আনুন</string>
+    <string name="mb_delete_forever">চিরতরে মুছুন</string>
+    <string name="mb_restored">গ্যালারিতে ফিরিয়ে আনা হয়েছে</string>
+    <string name="mb_restore_failed">ফাইলটি ফিরিয়ে আনা যায়নি</string>
+    <string name="mb_days_left">%1$d দিন বাকি</string>
+    <string name="mb_moved">%1$dটি বিনে সরানো হয়েছে</string>
+    <string name="del_perm_title">Allow / Deny প্রশ্নটি বন্ধ করুন</string>
+    <string name="del_perm_body">সাধারণত অ্যাপ ছবি মোছার সময় অ্যান্ড্রয়েড প্রতিবার Allow বা Deny জিজ্ঞেস করে। এই প্রশ্নটি বন্ধ করতে মেমোরার "সব ফাইল অ্যাক্সেস" দরকার। এরপর ডিলিট করলে ফাইলটি চুপচাপ মেমোরার বিনে চলে যায় এবং ৩০ দিন পর্যন্ত ফিরিয়ে আনা যায়। মেমোরা এই অনুমতি শুধু আপনি কিছু মোছার সময় ব্যবহার করে।</string>
+    <string name="del_perm_open">সেটিং খুলুন</string>
+    <string name="del_perm_later">এখন নয়</string>
+    <string name="set_bin">মেমোরা বিন</string>
+    <string name="set_allfiles">নীরব ডিলিট (সব ফাইল অ্যাক্সেস)</string>
+    <string name="set_allfiles_on">অনুমতি আছে</string>
+    <string name="set_allfiles_off">অনুমতি দরকার</string>
+    <string name="flt_all">সব</string>
+    <string name="flt_photos">ছবি</string>
+    <string name="flt_videos">ভিডিও</string>
+    <string name="rf_upload_partial_removed">অসম্পূর্ণ আপলোড মুছে ফেলা হয়েছে, আবার সারিতে যোগ হয়েছে</string>
 </resources>
