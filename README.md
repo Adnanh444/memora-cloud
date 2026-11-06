@@ -1,4 +1,4 @@
-# Memora Cloud — 0.9.5 media update
+# Memora Cloud — 1.1.0 (upload stability, silent delete, floating controls) media update
 
 **Photos/videos only. Test build, not final public-launch approval.** Builds on 0.9.4; older source ZIPs and branches are retained. No documents/audio/general-file backup is added, and **this build contains no AI**: no models, no OCR, no image analysis, no cloud AI.
 

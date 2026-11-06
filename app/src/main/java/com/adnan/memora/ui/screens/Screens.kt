@@ -82,12 +82,21 @@ fun PlaceholderScreen(title: Int, icon: ImageVector) {
 }
 
 @Composable
-fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit, onDuplicates: () -> Unit) {
+fun SettingsScreen(
+    onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> Unit, onDuplicates: () -> Unit,
+    onBin: () -> Unit = {},
+) {
     val ctx = LocalContext.current
     val auth by com.adnan.memora.telegram.TelegramClient.get(ctx).auth.collectAsState()
     val lockEnabled by com.adnan.memora.ui.AppLockSettings.enabled.collectAsState()
     val toggleLock = com.adnan.memora.ui.rememberAppLockToggle()
     val tgLabel = stringResource(if (auth is com.adnan.memora.telegram.TgAuth.Ready) R.string.tg_connected else R.string.tg_disconnected)
+    var allFiles by remember { mutableStateOf(com.adnan.memora.data.MediaBin.enabled(ctx)) }
+    var binItems by remember { mutableStateOf(com.adnan.memora.data.MediaBin.items(ctx)) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        allFiles = com.adnan.memora.data.MediaBin.enabled(ctx)
+        binItems = com.adnan.memora.data.MediaBin.items(ctx)
+    }
     var showLang by remember { mutableStateOf(false) }
     var showCap by remember { mutableStateOf(false) }
     var cloudOnMetered by remember { mutableStateOf(com.adnan.memora.data.NetworkPolicy.cloudOnMetered(ctx)) }
@@ -102,6 +111,13 @@ fun SettingsScreen(onAbout: () -> Unit, onTelegram: () -> Unit, onBackup: () -> 
         }
         Spacer(Modifier.height(20.dp))
         Column(Modifier.fillMaxWidth().glass()) {
+            SettingRow(Icons.Filled.DeleteOutline, stringResource(R.string.set_bin), stringResource(R.string.mb_count, binItems.size, formatSize(binItems.sumOf { it.size })), onBin)
+            SettingRow(
+                Icons.Filled.Security, stringResource(R.string.set_allfiles),
+                stringResource(if (allFiles) R.string.set_allfiles_on else R.string.set_allfiles_off),
+            ) {
+                if (!allFiles) runCatching { ctx.startActivity(com.adnan.memora.data.MediaBin.settingsIntent(ctx)) }
+            }
             SettingRow(Icons.Filled.Cloud, stringResource(R.string.telegram_storage), tgLabel, onTelegram)
             SettingRow(Icons.Filled.CloudUpload, stringResource(R.string.bk_title), null, onBackup)
             SettingRow(Icons.Filled.Lock, stringResource(R.string.lp_app_lock), stringResource(if (lockEnabled) R.string.lp_lock_on else R.string.lp_lock_off), toggleLock)

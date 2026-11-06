@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -101,19 +104,44 @@ fun MediaGrid(
     val todayL = stringResource(R.string.today)
     val yesterdayL = stringResource(R.string.yesterday)
     val built = remember(list, todayL, yesterdayL) { buildEntries(list, todayL, yesterdayL) }
-    val state = rememberLazyGridState()
+    val state = androidx.compose.runtime.saveable.rememberSaveable(gridKey, saver = LazyGridState.Saver) { LazyGridState() }
     val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
     val gap = 4.dp
+
+    // Long-press then drag: keep selecting (or keep deselecting) every cell the finger crosses.
+    var dragSelect by remember { mutableStateOf(false) }
+    var lastDraggedKey by remember { mutableStateOf<String?>(null) }
+    var gridCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    fun entryUnder(root: Offset): Entry.Item? {
+        val coords = gridCoords?.takeIf { it.isAttached } ?: return null
+        val info = state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+            val topLeft = coords.localToRoot(Offset(item.offset.x.toFloat(), item.offset.y.toFloat()))
+            root.x >= topLeft.x && root.x < topLeft.x + item.size.width &&
+                root.y >= topLeft.y && root.y < topLeft.y + item.size.height
+        } ?: return null
+        return built.entries.getOrNull(info.index) as? Entry.Item
+    }
+
+    fun selectAlong(root: Offset) {
+        val entry = entryUnder(root) ?: return
+        val key = entry.media.key
+        if (key == lastDraggedKey) return
+        lastDraggedKey = key
+        val alreadySelected = key in selection
+        if (dragSelect != alreadySelected) vm.toggle(key)
+    }
 
     PinchGrid(gridKey, modifier) { columns, gesture ->
     Box(Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             state = state,
             columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxSize().then(gesture).onGloballyPositioned { gridCoords = it },
             contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(gap),
             verticalArrangement = Arrangement.spacedBy(gap),
-            modifier = Modifier.fillMaxSize().then(gesture),
+            // fillMaxSize stays: the oversized content keeps the pinch gesture underneath
         ) {
             items(
                 count = built.entries.size,
@@ -135,6 +163,15 @@ fun MediaGrid(
                             else onOpen(list.indexOfFirst { it.key == e.media.key })
                         },
                         onLongClick = { vm.toggle(e.media.key) },
+                        onDragStart = { root ->
+                            val key = e.media.key
+                            val wasSelected = key in vm.selection.value
+                            dragSelect = !wasSelected
+                            lastDraggedKey = key
+                            vm.toggle(key)
+                        },
+                        onDrag = { root -> selectAlong(root) },
+                        onDragEnd = { lastDraggedKey = null },
                     )
                 }
             }
@@ -213,6 +250,9 @@ private fun BoxScope.FastScroller(state: LazyGridState, months: List<String>) {
 private fun MediaCell(
     m: LocalMedia, selected: Boolean, selecting: Boolean, badge: ItemBackup?,
     onClick: () -> Unit, onLongClick: () -> Unit,
+    onDragStart: ((Offset) -> Unit)? = null,
+    onDrag: ((Offset) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
 ) {
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
@@ -229,6 +269,11 @@ private fun MediaCell(
     )
     val onClickL by rememberUpdatedState(onClick)
     val onLongL by rememberUpdatedState(onLongClick)
+    val onDragStartL by rememberUpdatedState(onDragStart)
+    val onDragL by rememberUpdatedState(onDrag)
+    val onDragEndL by rememberUpdatedState(onDragEnd)
+    val selectedNow by rememberUpdatedState(selected)
+    var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val clean = LocalCleanStyle.current
     val shape = RoundedCornerShape(if (selected) 14.dp else 6.dp)
     val brand = brandBrush()
@@ -236,11 +281,24 @@ private fun MediaCell(
     Box(
         Modifier.aspectRatio(1f)
             .graphicsLayer { this.alpha = alpha; val sc = enter * press; scaleX = sc; scaleY = sc }
+            .onGloballyPositioned { coords = it }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = { pressed = true; tryAwaitRelease(); pressed = false },
                     onTap = { onClickL() },
-                    onLongPress = { onLongL() },
+                )
+            }
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { position ->
+                        pressed = false
+                        onDragStartL?.invoke(coords?.localToRoot(position) ?: position)
+                    },
+                    onDrag = { change, _ ->
+                        onDragL?.invoke(coords?.localToRoot(change.position) ?: change.position)
+                    },
+                    onDragEnd = { onDragEndL?.invoke() },
+                    onDragCancel = { onDragEndL?.invoke() },
                 )
             }
     ) {

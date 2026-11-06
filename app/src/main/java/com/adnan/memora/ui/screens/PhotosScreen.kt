@@ -88,7 +88,9 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
         return
     }
 
-    val items by vm.photosFeed.collectAsState()
+    val rawItems by vm.photosFeed.collectAsState()
+    val mediaFilter by vm.mediaFilter.collectAsState()
+    val items = remember(rawItems, mediaFilter) { applyMediaFilter(rawItems, mediaFilter) }
     val loading by vm.loading.collectAsState()
     val selecting by vm.selecting.collectAsState()
     val summary by vm.backupSummary.collectAsState()

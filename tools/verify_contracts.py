@@ -71,7 +71,10 @@ class SourceContracts(unittest.TestCase):
         manifest = ET.parse(ROOT / "app/src/main/AndroidManifest.xml").getroot()
         names = [node.get("{http://schemas.android.com/apk/res/android}name") for node in manifest.findall("uses-permission")]
         self.assertNotIn("android.permission.MANAGE_MEDIA", names)
-        self.assertNotIn("android.permission.MANAGE_EXTERNAL_STORAGE", names)
+        # 0.9.6: All files access is allowed, but only as the bin's silent-delete path
+        if "android.permission.MANAGE_EXTERNAL_STORAGE" in names:
+            self.assertIn("MediaBin.settingsIntent", (JAVA / "ui/screens/MediaActions.kt").read_text())
+            self.assertIn("moveToBin", (JAVA / "data/MediaBin.kt").read_text())
 
     def test_refresh_labels_are_localized(self):
         def names(folder):
@@ -98,6 +101,9 @@ class RetainedInterfaceContracts(unittest.TestCase):
         for path, expected in baseline.items():
             if path.endswith("ui/screens/TelegramScreen.kt"):
                 continue  # Deliberate warning/explicit-action UI additions, not a backend rewrite.
+            if path.endswith("backup/BackupEngine.kt"):
+                continue  # 1.1.0: graceful pause + interrupted-upload cleanup; guarded by
+                          # test_backup_engine_keeps_the_upload_rails below.
             with self.subTest(path=path):
                 source=(ROOT/path).read_text()
                 if path.endswith("telegram/TelegramClient.kt"):
@@ -133,6 +139,77 @@ class RetainedInterfaceContracts(unittest.TestCase):
     def test_utility_grid_has_four_tiles(self):
         library = (JAVA / "ui/screens/LibraryScreen.kt").read_text()
         self.assertEqual(library.count("UtilityTile(Icons."), 4)
+
+    def test_delete_goes_through_memora_bin_without_a_system_dialog(self):
+        actions = (JAVA / "ui/screens/MediaActions.kt").read_text()
+        delete_fn = actions.split("fun rememberDeleteAction", 1)[1].split("class BinActions", 1)[0]
+        self.assertIn("MediaBin.moveToBin", delete_fn)
+        # the gallery delete must never trigger Android's Allow / Deny sheet
+        for dialog in ("createTrashRequest", "createDeleteRequest", "RecoverableSecurityException"):
+            self.assertNotIn(dialog, delete_fn)
+        bin_file = (JAVA / "data/MediaBin.kt").read_text()
+        for member in ("RETENTION_DAYS", "fun moveToBin", "fun restore", "fun purge", "fun settingsIntent"):
+            self.assertIn(member, bin_file)
+        self.assertIn("MANAGE_EXTERNAL_STORAGE", (ROOT / "app/src/main/AndroidManifest.xml").read_text())
+
+    def test_filter_pill_is_shared_by_gallery_cloud_and_search(self):
+        for screen in ("PhotosScreen.kt", "CloudScreen.kt", "SearchScreen.kt"):
+            self.assertIn("applyMediaFilter", (JAVA / "ui/screens" / screen).read_text())
+        self.assertIn("MediaFilterPill(", (JAVA / "ui/MemoraApp.kt").read_text())
+        pill = (JAVA / "ui/screens/MediaFilterPill.kt").read_text()
+        for part in ("ALL(", "PHOTOS(", "VIDEOS("):
+            self.assertIn(part, pill)
+
+    def test_long_press_drag_selects_and_deselects_serially(self):
+        grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
+        self.assertIn("detectDragGesturesAfterLongPress", grid)
+        self.assertIn("lastDraggedKey", grid)
+        # deselect mode: the drag continues in the opposite direction of the first cell
+        self.assertIn("dragSelect = !wasSelected", grid)
+
+    def test_backup_engine_keeps_the_upload_rails(self):
+        """BackupEngine is no longer byte-identical to 0.9.2; these are the rails that must survive."""
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        for rail in ("MAX_FILE_BYTES", "MAX_AUTO_ATTEMPTS", "uploadGate", "private suspend fun processOne"):
+            self.assertIn(rail, engine)
+        # the type + folder rule is unchanged
+        rule = engine.split("fun isEligible", 1)[1].split("\n\n", 1)[0]
+        self.assertIn("cfg.videos", rule)
+        self.assertIn("cfg.photos", rule)
+        self.assertIn("bucket in cfg.folders", rule)
+        # verified only after the remote size is checked
+        self.assertIn("tg.verifyMessage(chatId, res.messageId, actualSize)", engine)
+        # backup still never erases an original photo
+        self.assertNotIn("File(e.uri)", engine)
+
+    def test_pause_finishes_the_file_in_flight(self):
+        """Pause must not cut a transfer in half: it stops between files, not mid-send."""
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        pause = engine.split("fun pause(ctx: Context)", 1)[1].split("fun pauseNow(", 1)[0]
+        self.assertNotIn("uploadJob?.cancel()", pause)
+        self.assertIn("fun pauseNow", engine)
+        # the loop still stops on its own between files
+        self.assertIn("if (cfg.paused) break", engine)
+
+    def test_no_corrupt_upload_is_left_behind(self):
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        # temporary copies of a killed run are removed before a new run starts
+        self.assertIn("fun purgePartials", engine)
+        self.assertIn("purgePartials(ctx)", engine)
+        # an unfinished upload has its half-arrived message deleted, then the file is queued again
+        unconfirmed = engine.split("suspend fun checkUnconfirmed", 1)[1].split("suspend fun retryHeld", 1)[0]
+        self.assertIn("deleteMessages", unconfirmed)
+        self.assertIn("BackupEntry.ST_QUEUED", unconfirmed)
+        self.assertIn("messageId = 0L", unconfirmed)
+
+    def test_grid_keeps_its_scroll_position(self):
+        grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
+        self.assertIn("rememberSaveable(gridKey", grid)
+
+    def test_version_is_1_1_0(self):
+        gradle = (ROOT / "app/build.gradle.kts").read_text()
+        self.assertIn('versionName = "1.1.0"', gradle)
+        self.assertIn("versionCode = 21", gradle)
 
     def test_optional_lock_uses_system_credential_not_stored_custom_pin(self):
         lock = (JAVA / "ui/AppLockGate.kt").read_text()

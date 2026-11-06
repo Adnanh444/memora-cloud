@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,11 @@ fun MemoraApp() {
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
     val showBar = Tab.entries.any { it.route == current }
+
+    val mediaFilter by gallery.mediaFilter.collectAsState()
+    val selectingNow by gallery.selecting.collectAsState()
+    val filterVisible = !selectingNow &&
+        (current == Tab.Photos.route || current == Tab.Cloud.route || current?.startsWith("search/") == true)
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AuroraBackground(Modifier.fillMaxSize())
@@ -126,9 +132,11 @@ fun MemoraApp() {
                         onTelegram = { nav.navigate("telegram") },
                         onBackup = { nav.navigate("backup") },
                         onDuplicates = { nav.navigate("duplicates") },
+                        onBin = { nav.navigate("memorabin") },
                     )
                 }
                 composable("duplicates") { DuplicatesScreen(gallery, onBack = { nav.popBackStack() }) }
+                composable("memorabin") { MemoraBinScreen(gallery, onBack = { nav.popBackStack() }) }
                 composable("backup") {
                     BackupScreen(gallery, onBack = { nav.popBackStack() }, onOpenTelegram = { nav.navigate("telegram") })
                 }
@@ -160,6 +168,14 @@ fun MemoraApp() {
                 composable("cloudbin") { CloudBinScreen(gallery, onBack = { nav.popBackStack() }) }
             }
         }
+        AnimatedVisibility(
+            visible = filterVisible,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 92.dp),
+            enter = fadeIn(tween(200)) + slideInVertically(tween(200)) { it / 2 },
+            exit = fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 2 },
+        ) {
+            MediaFilterPill(mediaFilter, onPick = { gallery.mediaFilter.value = it })
+        }
     }
 }
 
@@ -167,8 +183,8 @@ fun MemoraApp() {
 private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(24.dp)
-    Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 6.dp)
-        .glass(shape).padding(5.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+    Row(Modifier.glass(shape).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         Tab.entries.forEach { tab ->
             val selected = current == tab.route
             val accent = when (tab) {
@@ -177,16 +193,17 @@ private fun FloatingNavBar(current: String?, onSelect: (Tab) -> Unit) {
             }
             val fill by animateColorAsState(if (selected) accent.copy(alpha = .16f) else Color.Transparent, label = "tab-glass")
             val outline by animateColorAsState(if (selected) accent.copy(alpha = .55f) else Color.Transparent, label = "tab-edge")
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(fill)
+            Column(Modifier.clip(RoundedCornerShape(18.dp)).background(fill)
                 .border(1.dp, outline, RoundedCornerShape(18.dp))
                 .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(tab) })
-                .heightIn(min = 58.dp).padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Icon(tab.icon, null, tint = if (selected) accent else cs.onSurfaceVariant, modifier = Modifier.size(23.dp))
+                .heightIn(min = 46.dp).padding(horizontal = 13.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Icon(tab.icon, null, tint = if (selected) accent else cs.onSurfaceVariant, modifier = Modifier.size(20.dp))
                 Text(stringResource(tab.label), style = MaterialTheme.typography.labelSmall,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (selected) cs.onSurface else cs.onSurfaceVariant, maxLines = 1)
             }
         }
+    }
     }
 }

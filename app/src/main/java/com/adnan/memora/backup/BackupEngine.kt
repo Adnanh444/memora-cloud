@@ -144,8 +144,20 @@ object BackupEngine {
         bucket != null && bucket != "Memora" &&
             (if (isVideo) cfg.videos else cfg.photos) && bucket in cfg.folders
 
-    /** Stops the upload running RIGHT NOW (it goes back to the queue) and keeps backup paused. */
+    /**
+     * Pause. The file being uploaded right now is allowed to finish — so nothing is left
+     * half-sent on the server and no temporary copy is abandoned — and the queue stops
+     * before the next file starts.
+     */
     fun pause(ctx: Context) {
+        val cfg = BackupSettings.load(ctx).copy(paused = true)
+        BackupSettings.save(ctx, cfg)
+        configFlow.value = cfg
+        // no cancel: the running loop sees paused == true between files and stops cleanly
+    }
+
+    /** Immediate stop. Used only where waiting is not acceptable; the cancelled file goes back to the queue. */
+    fun pauseNow(ctx: Context) {
         val cfg = BackupSettings.load(ctx).copy(paused = true)
         BackupSettings.save(ctx, cfg)
         configFlow.value = cfg
@@ -238,10 +250,23 @@ object BackupEngine {
                 catch (_: Exception) { null } ?: continue
             for (entry in entries) {
                 if (entry.sha256 == null) continue
-                val found = documents.firstOrNull { it.sha == entry.sha256 && it.size == entry.size } ?: continue
-                dao.update(entry.copy(state = BackupEntry.ST_VERIFIED, messageId = found.messageId,
-                    verifiedAt = System.currentTimeMillis(), uploadedAt = found.dateMs, error = null))
-                confirmed++
+                val found = documents.firstOrNull { it.sha == entry.sha256 && it.size == entry.size }
+                if (found != null) {
+                    dao.update(entry.copy(state = BackupEntry.ST_VERIFIED, messageId = found.messageId,
+                        verifiedAt = System.currentTimeMillis(), uploadedAt = found.dateMs, error = null))
+                    confirmed++
+                    continue
+                }
+                // The upload was cut off: no complete copy exists in the channel.
+                // Delete whatever half-arrived message is there, then put the file back in the
+                // queue so it is uploaded again from scratch — never a broken copy, never a duplicate.
+                if (entry.messageId != 0L) {
+                    withTimeoutOrNull(60_000L) { tg.deleteMessages(chat, listOf(entry.messageId)) }
+                }
+                dao.update(entry.copy(
+                    state = BackupEntry.ST_QUEUED, messageId = 0L, sha256 = null,
+                    attempts = 0, error = ctx.getString(R.string.rf_upload_partial_removed),
+                ))
             }
         }
         confirmed
@@ -309,6 +334,7 @@ object BackupEngine {
     }
 
     private suspend fun runUploadsExclusive(ctx: Context): Boolean {
+        withContext(Dispatchers.IO) { purgePartials(ctx) }
         val dao = BackupDb.get(ctx).dao()
         val tg = TelegramClient.get(ctx)
         if (!tg.awaitUsable()) return false
@@ -342,6 +368,13 @@ object BackupEngine {
             }
         }
         return true
+    }
+
+    /** Deletes temporary copies left behind by a cancelled or killed upload. */
+    fun purgePartials(ctx: Context) {
+        val dir = File(ctx.cacheDir, "upload")
+        if (!dir.isDirectory) return
+        dir.listFiles()?.forEach { if (!it.delete()) it.deleteOnExit() }
     }
 
     private suspend fun processOne(ctx: Context, dao: BackupDao, tg: TelegramClient, chatId: Long, uri: String) {
