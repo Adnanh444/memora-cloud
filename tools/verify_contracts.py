@@ -220,10 +220,28 @@ class RetainedInterfaceContracts(unittest.TestCase):
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("rememberSaveable(gridKey", grid)
 
-    def test_version_is_1_1_1(self):
+    def test_version_is_1_1_2(self):
         gradle = (ROOT / "app/build.gradle.kts").read_text()
-        self.assertIn('versionName = "1.1.1"', gradle)
-        self.assertIn("versionCode = 22", gradle)
+        self.assertIn('versionName = "1.1.2"', gradle)
+        self.assertIn("versionCode = 23", gradle)
+
+    def test_cloud_duplicate_check_reads_the_channel_and_keeps_the_first_copy(self):
+        src = (JAVA / "backup/CloudDuplicateScanner.kt").read_text()
+        # the check must not depend on the local database alone
+        self.assertIn("scanHistory(", src)
+        self.assertIn("d.sha ?: ", src)
+        # the oldest message id is kept, the rest are extras
+        self.assertIn("list.first()", src)
+        self.assertIn("list.drop(1)", src)
+        # nothing is removed without the owner pressing the button
+        self.assertIn("fun scan(", src)
+        self.assertIn("fun removeExtras(", src)
+        self.assertNotIn("removeExtras(ctx)\n        scope.launch {\n            val dao = BackupDb", src)
+        # a tracked copy goes to the bin, an untracked one is deleted directly
+        self.assertIn("trashByMessage(", src)
+        self.assertIn("deleteMessages(", src)
+        ui = (JAVA / "ui/screens/CloudDuplicateCard.kt").read_text()
+        self.assertIn("AlertDialog(", ui)
 
     def test_upload_strip_keeps_a_constant_height(self):
         """The strip sits above the grid: a variable-height name line was moving the whole page."""

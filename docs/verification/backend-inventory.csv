@@ -37,3 +37,5 @@ app/src/main/java/com/adnan/memora/data/NetworkPolicy.kt,NEW_HELPER,-,3ae362be5e
 app/src/main/java/com/adnan/memora/data/MediaBin.kt,NEW_HELPER,-,9cddf1044cdd18680ffa42339e47ed03a229eeb5e6b513cf6c971a2ad9335626
 app/src/main/java/com/adnan/memora/ui/screens/MemoraBinScreen.kt,NEW_HELPER,-,32cdf05f27dd6f0675baf6f0ce8c76481cbccc54b9102228475c5142b491ec9b
 app/src/main/java/com/adnan/memora/ui/screens/MediaFilterPill.kt,NEW_HELPER,-,9eb7e17679a7e8063cad39e65a3f22f5ca9f6d2ab54dfe9164495a886226fa24
+app/src/main/java/com/adnan/memora/backup/CloudDuplicateScanner.kt,guarded,,4ace10aa77a1a217952d0bf5507c163a6e9e932d33470f13f494df6fe501ca6b
+app/src/main/java/com/adnan/memora/ui/screens/CloudDuplicateCard.kt,guarded,,7ac8df1958f187bf510d0a42d9630bbd0b58e638d3288220c376b1e2cf318e42
