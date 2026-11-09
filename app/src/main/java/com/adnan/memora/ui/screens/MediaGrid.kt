@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -104,6 +105,7 @@ private fun buildEntries(list: List<LocalMedia>, todayLabel: String, yesterdayLa
 fun MediaGrid(
     list: List<LocalMedia>, vm: GalleryViewModel, onOpen: (Int) -> Unit, modifier: Modifier = Modifier,
     showBadges: Boolean = true, gridKey: String = "gallery",
+    downloadedKeys: Set<String> = emptySet(),
 ) {
     val selection by vm.selection.collectAsState()
     val selecting by vm.selecting.collectAsState()
@@ -116,53 +118,57 @@ fun MediaGrid(
     val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
     val gap = 4.dp
 
-    // ---- drag selection -----------------------------------------------------------------------
-    // Google-Photos behaviour: the first cell is the anchor, the whole span between the anchor and the
-    // finger is selected (or deselected) together, dragging back shrinks the span, and holding at an
-    // edge keeps scrolling while it keeps extending. No cell is skipped, nothing is left behind.
+    // ---- long-press + drag selection (the simple version that worked) -------------------------
+    // Press a cell and drag: every cell the finger passes flips in the direction set by the first
+    // cell. Fast drags are interpolated so nothing is skipped, dragging back un-does it, and the
+    // list scrolls when the finger reaches an edge.
     var dragSelect by remember { mutableStateOf(false) }
-    var anchorIndex by remember { mutableIntStateOf(-1) }
-    var baseSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var lastDraggedKey by remember { mutableStateOf<String?>(null) }
+    var lastDragPoint by remember { mutableStateOf<Offset?>(null) }
     var gridCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var scrollJob by remember { mutableStateOf<Job?>(null) }
-    var lastTickKey by remember { mutableStateOf<String?>(null) }
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val edgePx = with(LocalDensity.current) { 90.dp.toPx() }
 
-    fun indexUnder(root: Offset): Int? {
+    fun entryUnder(root: Offset): Entry.Item? {
         val coords = gridCoords?.takeIf { it.isAttached } ?: return null
-        return state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+        val info = state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
             val topLeft = coords.localToRoot(Offset(item.offset.x.toFloat(), item.offset.y.toFloat()))
             root.x >= topLeft.x && root.x < topLeft.x + item.size.width &&
                 root.y >= topLeft.y && root.y < topLeft.y + item.size.height
-        }?.index
+        } ?: return null
+        return built.entries.getOrNull(info.index) as? Entry.Item
     }
 
-    /** Applies the whole span in one go, so the result is always anchor → finger and nothing else. */
-    fun applyRange(endIndex: Int) {
-        if (anchorIndex < 0) return
-        val from = minOf(anchorIndex, endIndex)
-        val to = maxOf(anchorIndex, endIndex)
-        val keys = (from..to).mapNotNull { (built.entries.getOrNull(it) as? Entry.Item)?.media?.key }
-        val next = if (dragSelect) baseSelection + keys else baseSelection - keys
-        if (next != vm.selection.value) {
-            vm.selection.value = next
-            val newest = keys.lastOrNull { it != lastTickKey }
-            if (newest != null && newest != lastTickKey) {
-                lastTickKey = newest
-                try { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Throwable) {}
-            }
-        }
+    /** Flips one cell, and lets the same drag flip it back when the finger returns. */
+    fun flipAt(root: Offset) {
+        val entry = entryUnder(root) ?: return
+        val key = entry.media.key
+        if (key == lastDraggedKey) return
+        lastDraggedKey = key
+        val isSelected = key in vm.selection.value
+        if (dragSelect == isSelected) return
+        vm.toggle(key)
+        try { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Throwable) {}
     }
 
-    fun endDrag() {
-        scrollJob?.cancel(); scrollJob = null
-        anchorIndex = -1
-        lastTickKey = null
+    fun cellPitch(): Float {
+        val first = state.layoutInfo.visibleItemsInfo.firstOrNull {
+            built.entries.getOrNull(it.index) is Entry.Item
+        } ?: return 1f
+        return minOf(first.size.width, first.size.height).toFloat().coerceAtLeast(1f)
     }
 
-    /** Keeps extending the span while the finger rests near the top or bottom edge. */
+    fun dragAlong(root: Offset) {
+        val previous = lastDragPoint
+        lastDragPoint = root
+        if (previous == null) { flipAt(root); return }
+        val delta = root - previous
+        val steps = (delta.getDistance() / (cellPitch() * 0.4f)).toInt().coerceIn(1, 32)
+        for (i in 1..steps) flipAt(previous + delta * (i / steps.toFloat()))
+    }
+
     fun autoScroll(root: Offset) {
         val coords = gridCoords?.takeIf { it.isAttached }
         if (coords == null) { scrollJob?.cancel(); scrollJob = null; return }
@@ -177,12 +183,17 @@ fun MediaGrid(
         if (scrollJob?.isActive == true) return
         scrollJob = scope.launch {
             while (isActive) {
-                state.scrollBy(direction * 18f)
+                state.scrollBy(direction * 14f)
                 delay(16)
-                // the finger has not moved but new cells appeared under it: extend to them
-                indexUnder(root)?.let { applyRange(it) }
+                flipAt(root)
             }
         }
+    }
+
+    fun endDrag() {
+        scrollJob?.cancel(); scrollJob = null
+        lastDragPoint = null
+        lastDraggedKey = null
     }
 
     PinchGrid(gridKey, modifier) { columns, gesture ->
@@ -221,6 +232,7 @@ fun MediaGrid(
                         selected = e.media.key in selection,
                         selecting = selecting,
                         badge = if (badgesOn) (itemBackup[e.media.key] ?: ItemBackup(BackupState.NOT_BACKED_UP)) else null,
+                        downloaded = e.media.key in downloadedKeys,
                         onClick = {
                             if (selecting) vm.toggle(e.media.key)
                             else onOpen(list.indexOfFirst { it.key == e.media.key })
@@ -228,18 +240,15 @@ fun MediaGrid(
                         onLongClick = { vm.toggle(e.media.key) },
                         onDragStart = { root ->
                             val key = e.media.key
-                            baseSelection = vm.selection.value
-                            dragSelect = key !in baseSelection
-                            anchorIndex = i
-                            lastTickKey = null
-                            applyRange(i)
+                            val wasSelected = key in vm.selection.value
+                            dragSelect = !wasSelected
+                            lastDraggedKey = key
+                            lastDragPoint = root
+                            vm.toggle(key)
                             try { haptics.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Throwable) {}
                             autoScroll(root)
                         },
-                        onDrag = { root ->
-                            indexUnder(root)?.let { applyRange(it) }
-                            autoScroll(root)
-                        },
+                        onDrag = { root -> dragAlong(root); autoScroll(root) },
                         onDragEnd = { endDrag() },
                     )
                 }
@@ -318,6 +327,7 @@ private fun BoxScope.FastScroller(state: LazyGridState, months: List<String>) {
 @Composable
 private fun MediaCell(
     m: LocalMedia, selected: Boolean, selecting: Boolean, badge: ItemBackup?,
+    downloaded: Boolean = false,
     onClick: () -> Unit, onLongClick: () -> Unit,
     onDragStart: ((Offset) -> Unit)? = null,
     onDrag: ((Offset) -> Unit)? = null,
@@ -387,8 +397,15 @@ private fun MediaCell(
                 Text(formatDuration(m.durationMs), color = Color.White, style = MaterialTheme.typography.labelSmall)
             }
         }
-        if (badge != null && !selecting) {
+        if (badge != null && !selecting && !downloaded) {
             StatusBadge(badge, Modifier.align(Alignment.TopEnd).padding(7.dp))
+        }
+        if (downloaded && !selecting) {
+            // Already on this phone: a small tick instead of the cloud badge, and never uploaded again.
+            Icon(
+                Icons.Filled.DownloadDone, stringResource(R.string.cl_downloaded),
+                Modifier.align(Alignment.TopEnd).padding(7.dp).size(18.dp), tint = Color(0xFF8CF0A8),
+            )
         }
         if (selecting) {
             Icon(

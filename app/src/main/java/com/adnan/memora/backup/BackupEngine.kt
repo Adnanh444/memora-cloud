@@ -296,6 +296,26 @@ object BackupEngine {
     }
 
     /**
+     * Gives the pictures uploaded before folders existed their real folder back.
+     * It looks the file up in the phone library and copies the folder name — nothing is uploaded,
+     * downloaded or deleted, and nothing is written to Telegram. Safe to run on every start: it only
+     * touches rows that still have no folder.
+     */
+    suspend fun backfillFolders(ctx: Context): Int = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(ctx).dao()
+        val todo = dao.all().filter { it.dir == null && it.uri.startsWith("content:") }
+        if (todo.isEmpty()) return@withContext 0
+        val byKey = MediaRepository(ctx).loadAll().associateBy { it.key }
+        var fixed = 0
+        for (e in todo) {
+            val bucket = byKey[e.uri]?.bucket?.takeIf { it.isNotBlank() } ?: continue
+            dao.update(e.copy(dir = bucket))
+            fixed++
+        }
+        fixed
+    }
+
+    /**
      * Puts files into a folder. Only the record changes: no file is downloaded, re-uploaded or deleted.
      * New uploads carry the folder in their caption, so a reinstall rebuilds it from the channel.
      */

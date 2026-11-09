@@ -197,13 +197,12 @@ class RetainedInterfaceContracts(unittest.TestCase):
             self.assertIn(part, pill)
 
     def test_long_press_drag_selects_and_deselects_serially(self):
-        """A drag selects or deselects as a span, in the direction set by the first cell."""
+        """A drag flips cells one by one, in the direction set by the first cell."""
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("detectDragGesturesAfterLongPress", grid)
-        self.assertIn("anchorIndex", grid)
-        self.assertIn("baseSelection", grid)
+        self.assertIn("lastDraggedKey", grid)
         # deselect mode: the drag continues in the opposite direction of the first cell
-        self.assertIn("dragSelect = key !in baseSelection", grid)
+        self.assertIn("dragSelect = !wasSelected", grid)
 
     def test_backup_engine_keeps_the_upload_rails(self):
         """BackupEngine is no longer byte-identical to 0.9.2; these are the rails that must survive."""
@@ -244,10 +243,10 @@ class RetainedInterfaceContracts(unittest.TestCase):
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("rememberSaveable(gridKey", grid)
 
-    def test_version_is_2_0_0(self):
+    def test_version_is_2_0(self):
         gradle = (ROOT / "app/build.gradle.kts").read_text()
-        self.assertIn('versionName = "2.0.0"', gradle)
-        self.assertIn("versionCode = 26", gradle)
+        self.assertIn('versionName = "2.0"', gradle)
+        self.assertIn("versionCode = 27", gradle)
 
     def test_uploads_never_start_on_a_blind_index(self):
         engine = (JAVA / "backup/BackupEngine.kt").read_text()
@@ -262,6 +261,36 @@ class RetainedInterfaceContracts(unittest.TestCase):
         self.assertIn("incomplete = !scan.complete", recovery)
         dup = (JAVA / "backup/CloudDuplicateScanner.kt").read_text()
         self.assertIn("if (!current.complete)", dup)
+
+    def test_downloads_queue_pause_resume_and_never_upload_again(self):
+        d = (JAVA / "cloud/CloudDownloader.kt").read_text()
+        self.assertIn("fun pause(", d)
+        self.assertIn("fun resume(", d)
+        # pause stops between files: the loop breaks on the flag, it never cancels mid-copy
+        self.assertIn("if (!isActive || paused) break", d)
+        self.assertNotIn("cancelAndJoin", d)
+        # a downloaded file is recorded as a duplicate of its cloud entry -> the backup skips it
+        self.assertIn("BackupEntry.ST_DUPLICATE", d)
+        self.assertIn("DownloadedStore.mark", d)
+        store = (JAVA / "cloud/DownloadedStore.kt").read_text()
+        self.assertIn("fun keys(", store)
+        self.assertIn("fun mark(", store)
+        grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
+        self.assertIn("downloadedKeys", grid)
+        self.assertIn("DownloadDone", grid)
+        backup = (JAVA / "ui/screens/BackupScreen.kt").read_text()
+        self.assertIn("CloudDownloader.resume", backup)
+        self.assertIn("CloudDownloader.pause", backup)
+
+    def test_old_files_get_their_own_folder_back(self):
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        backfill = engine.split("suspend fun backfillFolders", 1)[1].split("/**\n     * Puts files into a folder", 1)[0]
+        self.assertIn("dao.update(e.copy(dir = bucket))", backfill)
+        # it only reads the phone library and writes the folder column
+        for forbidden in ("uploadDocument", "dao.delete", "trashByMessage", "deleteMessages", "CloudDownloader"):
+            self.assertNotIn(forbidden, backfill)
+        cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        self.assertIn("backfillFolders(ctx)", cloud)
 
     def test_folders_can_be_created_and_files_moved(self):
         prefs = (JAVA / "data/FolderPrefs.kt").read_text()
@@ -387,17 +416,16 @@ class RetainedInterfaceContracts(unittest.TestCase):
         backup = (JAVA / "ui/screens/BackupScreen.kt").read_text()
         self.assertIn("softWrap = false", backup)
 
-    def test_drag_selection_fills_the_whole_span(self):
-        """Google-Photos behaviour: anchor + span, shrinks when dragged back, extends while scrolling."""
+    def test_drag_selection_is_simple_and_reversible(self):
+        """Reverted on request: per-cell flip in both directions, interpolated, edge auto-scroll."""
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
-        self.assertIn("fun applyRange(", grid)
-        self.assertIn("var anchorIndex", grid)
-        self.assertIn("baseSelection + keys", grid)   # selecting
-        self.assertIn("baseSelection - keys", grid)   # deselecting the same span
-        self.assertIn("minOf(anchorIndex, endIndex)", grid)  # works from any corner
+        self.assertIn("fun flipAt(", grid)
+        self.assertIn("fun dragAlong(", grid)
+        self.assertIn("if (dragSelect == isSelected) return", grid)  # the same drag can flip back
         self.assertIn("fun autoScroll(", grid)
         self.assertIn("state.scrollBy", grid)
         self.assertIn("performHapticFeedback", grid)
+        self.assertNotIn("fun applyRange(", grid)
 
     def test_folder_row_shows_from_the_first_folder(self):
         cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()

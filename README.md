@@ -1,22 +1,100 @@
-# Memora Cloud — 1.1.0 (upload stability, silent delete, floating controls) media update
+# Memora Cloud 📱☁️
 
-**Photos/videos only. Test build, not final public-launch approval.** Builds on 0.9.4; older source ZIPs and branches are retained. No documents/audio/general-file backup is added, and **this build contains no AI**: no models, no OCR, no image analysis, no cloud AI.
+**Your phone gallery, backed up into your own private Telegram channel.**
+No account on our side, no server, no ads. Your photos go from your phone to your Telegram — nowhere else.
 
-## New in 0.9.5
-- **Gold/blue coverage:** photo counters use deep gold, video counters deep blue; each ring and its compact line share one tint and progress. Readable in light and dark (every label pair verified ≥ 4.5:1). Independent Gallery/Cloud visibility buttons persist after restart; backup activity is unaffected.
-- **Compact selection, bottom actions:** compact numeric selection badges, aligned 48 dp targets, and one narrow bottom toolbar in the photo viewer.
-- **In-app video:** Gallery and Cloud both play through a Media3 player with seek/pause, lifecycle pause, error + retry, and a temporary download of the cloud original. Photos keep native/Coil decoding with an explicit unsupported-image message.
-- **Channel warning + Archive & mute:** an explicit warning about what channel deletion means, plus an opt-in confirmed archive/mute convenience. It cannot lock the channel against deletion in Telegram.
-- **Data-friendly cloud previews:** on a metered connection no cloud thumbnail or video is fetched; cells stay empty and only an item you deliberately open costs data. Settings → **Cloud previews on mobile data** (default off) re-enables them. Phone gallery thumbnails never use the network.
-- **Bounded caches:** preview/thumbnail disk cache is capped at your chosen ceiling (200/500/1000 MB, default 500) with oldest-first eviction, plus a **Clear preview cache** action. Telegram's own media cache is managed by TDLib's storage optimizer.
-- **Better sign-in:** the Telegram setup flow got a three-step indicator, paste buttons, inline validation, disabled-until-valid buttons with in-button progress, password reveal, and clearer help text. **The underlying auth, storage and backup code is unchanged from 0.9.2.**
+Version **2.0** · Android 8.0+ · Works with your own Telegram account
 
-## Size
-This build has no AI runtime and no bundled models. Measured release/debug APK sizes and the exact delta versus 0.9.4 are in [TEST-REPORT.md](docs/TEST-REPORT.md).
+---
 
-## Telegram / recovery
-The 0.9.2 login, credentials, backup/recovery, storage/key-note formats and original upload safeguards remain. Only the requested archive/mute helper is added to `TelegramClient`; nothing else in that boundary changed. CI requires the **existing signing Secrets**, not API Secrets; API ID/hash are entered in the app. Have credentials ready again on a replacement installation before authentication. Pause backup before logout/recovery and use one account/destination per installation.
+## What it does
 
-HEIC/HEIF, JPEG/PNG/WebP and compatible iPhone MOV/MP4 work where Android/device decoders support them. **No universal HEVC/HDR/Dolby Vision/ProRes/RAW/AVIF support or transcoding is promised.** Backup bytes are unchanged regardless of preview support.
+| | |
+|---|---|
+| 📸 **Backup** | Photos and videos upload to a private channel you own |
+| 🗂 **Folders** | Your phone folders appear as they are — Camera, WhatsApp, Screenshots… |
+| ☁️ **Cloud tab** | See everything that is backed up, even if you deleted it from the phone |
+| 🧹 **Bin** | Deleted files wait 30 days before they are really gone |
+| ⬇️ **Download** | Bring anything back from the cloud, file by file |
+| 🔍 **Sort** | Newest, oldest, by name, by size |
+| 🌙 **Dark mode** | Readable in both themes |
 
-Read [IMPLEMENTATION.md](IMPLEMENTATION.md), [TEST-REPORT.md](docs/TEST-REPORT.md), and [remaining launch gates](docs/LAUNCH-AND-AI.md). [PLAN-v1.0.md](docs/PLAN-v1.0.md) records the deferred roadmap (people/smart search, smart delete/bin, FIFO queue, theme overhaul) and why it is not in this build. Owner-signed phone tests, real Telegram validation, and policy/security review remain required. No main merge, remote push or branch deletion is performed by this package.
+---
+
+## Install
+
+1. Download `Memora.apk` from the **Actions → Build APK** page of this repository.
+2. Tap it on your phone.
+3. If Android says *"For your security…"*, tap **Settings → Allow from this source**, then install.
+4. If Play Protect says *"Unsafe app blocked"*, tap **More details → Install anyway**. This appears because the app is not distributed through Play, not because anything is wrong.
+5. Open the app.
+
+**Updating:** install the new APK over the old one. Your data stays. Never uninstall to update — uninstalling deletes the app's index and bin.
+
+---
+
+## First run — 4 steps
+
+**1. Connect Telegram**
+Enter your `api_id` and `api_hash` from [my.telegram.org](https://my.telegram.org) → *API development tools*. Free, takes a minute.
+Then your phone number → the code Telegram sends you → your two-step password if you have one.
+
+**2. Create the storage**
+The app makes a private channel in your account. Only you can see it. Do not delete it, rename it, or add members.
+
+**3. Choose what to back up**
+Backup → pick the folders you want (or press **All on**), and whether to include photos, videos, or both.
+
+**4. Start**
+Tap back up. Uploads run in the background with a notification. You can pause — the file in flight finishes first, so nothing is ever left half-uploaded.
+
+---
+
+## Using it
+
+**Gallery** — your phone library, by date. Tap a photo to open it. Long-press, then drag, to select many.
+
+**Cloud** — everything backed up. Folder chips at the top filter by folder. Tap **+ New folder** to make your own.
+
+**Bin** — deleted files, 30 days. Tap to preview, restore, or delete for good.
+
+**Sort** — the icon in the top bar. Your choice is remembered.
+
+**Backup screen** — shows how many files are in the cloud and how many phone photos already match, so you always know your library is in sync.
+
+---
+
+## Screenshots
+
+| Gallery | Cloud | Folders | Bin |
+|---|---|---|---|
+| ![Gallery](docs/screenshots/01-gallery.png) | ![Cloud](docs/screenshots/02-cloud.png) | ![Folders](docs/screenshots/03-folders.png) | ![Bin](docs/screenshots/04-bin.png) |
+
+*Capture these four screens on your phone and drop them into `docs/screenshots/` with those names.*
+
+---
+
+## Rules the app follows
+
+- **Never deletes your originals.** Backup only reads.
+- **Never uploads twice.** Every file is fingerprinted before upload.
+- **Type AND folder must be ON** for anything to be uploaded.
+- **Cloud and phone are separate libraries.** Downloading never triggers an upload.
+- **No secrets in the app.** Credentials stay encrypted on your phone; there is no developer server.
+
+## If something looks wrong
+
+| Symptom | What to do |
+|---|---|
+| "Cloud library not loaded" | Telegram → **Restore existing backup**. Uploads wait until the library is read. |
+| Counts don't match | Gallery is the phone, Cloud is the channel. They are meant to differ. |
+| Files show under **Unfiled** | Their folder is unknown yet — open the Cloud tab, it fills in automatically. |
+| New phone / reinstalled | Sign in, then **Restore existing backup** → wait for "Restore complete". |
+
+## Privacy
+
+The app talks to Telegram and to nothing else. No analytics, no ads, no crash reporting, no developer server.
+
+## Licence
+
+Private project. Not for redistribution.

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -71,7 +72,14 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     val cloudAll by vm.cloudMedia.collectAsState()
     val dl by CloudDownloader.state.collectAsState()
     val status by remember { TelegramClient.get(ctx) }.storageStatus.collectAsState()
+    var downloaded by remember { mutableStateOf(com.adnan.memora.cloud.DownloadedStore.keys(ctx)) }
+    LaunchedEffect(dl?.done) { downloaded = com.adnan.memora.cloud.DownloadedStore.keys(ctx) }
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
+    // Files uploaded before 2.0 have no folder yet: fill them in once, quietly, from the phone library.
+    LaunchedEffect(Unit) {
+        val fixed = try { BackupEngine.backfillFolders(ctx) } catch (_: Throwable) { 0 }
+        if (fixed > 0) vm.refresh()
+    }
 
     if (newFolder) {
         var name by remember { mutableStateOf("") }
@@ -138,6 +146,17 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
                 }
             }
         }
+        if (!selecting && folderFilter.isNotEmpty() && shown.isNotEmpty()) {
+            // Inside a folder: download the whole folder, queued with pause/resume.
+            TextButton(onClick = {
+                com.adnan.memora.cloud.CloudDownloader.start(ctx, shown)
+                Toast.makeText(ctx, R.string.cl_downloading, Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(Icons.Filled.Download, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.cl_download_folder, shown.size))
+            }
+        }
         if (shown.isEmpty() && items.isNotEmpty()) {
             Text(
                 stringResource(R.string.folder_empty),
@@ -148,7 +167,7 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
         }
         if (shown.isNotEmpty()) {
             MediaGrid(
-                list = shown, vm = vm,
+                list = shown, vm = vm, downloadedKeys = downloaded,
                 onOpen = { i -> vm.openViewer(shown, i); onOpenViewer() },
                 modifier = Modifier.fillMaxSize(), showBadges = false, gridKey = "cloud",
             )

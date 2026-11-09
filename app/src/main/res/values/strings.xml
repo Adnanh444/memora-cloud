@@ -314,4 +314,10 @@
     <string name="folder_create">Create</string>
     <string name="folder_move">Move to folder</string>
     <string name="folder_empty">This folder is empty. Select files in All and move them here.</string>
+    <string name="dl_running">Downloading %1$d of %2$d</string>
+    <string name="dl_paused">Download paused — the file in flight was finished</string>
+    <string name="dl_pause">Pause</string>
+    <string name="dl_resume">Resume</string>
+    <string name="cl_downloaded">Already downloaded to this phone</string>
+    <string name="cl_download_folder">Download this folder · %1$d files</string>
 </resources>

@@ -191,6 +191,45 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                 SwitchRow(stringResource(R.string.bk_videos), null, cfg.videos) { apply(cfg.copy(videos = it)) }
             }
 
+            val dlState by com.adnan.memora.cloud.CloudDownloader.state.collectAsState()
+            dlState?.let { d ->
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 10.dp).glass().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        if (d.paused) stringResource(R.string.dl_paused)
+                        else stringResource(R.string.dl_running, d.done, d.total),
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                    )
+                    LinearProgressIndicator(
+                        progress = { if (d.total > 0) d.done.toFloat() / d.total else 0f },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                    )
+                    d.current?.let {
+                        Text(
+                            "$it · ${(d.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                            softWrap = false, overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (d.paused) {
+                            Button(onClick = { com.adnan.memora.cloud.CloudDownloader.resume(ctx) }) {
+                                Text(stringResource(R.string.dl_resume))
+                            }
+                        } else {
+                            OutlinedButton(onClick = { com.adnan.memora.cloud.CloudDownloader.pause() }) {
+                                Text(stringResource(R.string.dl_pause))
+                            }
+                        }
+                        OutlinedButton(onClick = { com.adnan.memora.cloud.CloudDownloader.cancel() }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                }
+            }
             if (folders.isNotEmpty()) {
                 val allOn = folders.all { it.name in cfg.folders }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
