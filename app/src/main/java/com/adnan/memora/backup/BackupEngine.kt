@@ -33,13 +33,21 @@ import java.io.FileNotFoundException
 
 fun LocalMedia.toEntry() = BackupEntry(
     uri = key, name = name, mime = mime, size = size, dateTaken = dateTaken, isVideo = isVideo,
+    dir = bucket.ifBlank { null },
 )
+
+/** Caption format: `memora:v1 sha256=… taken=… dir=…`. Old messages without `dir` still parse. */
+private fun captionFor(e: BackupEntry, sha: String): String {
+    val base = "memora:v1 sha256=$sha taken=${e.dateTaken}"
+    val dir = e.dir?.trim()?.replace(' ', '_') ?: return base
+    return "$base dir=$dir"
+}
 
 /** A backed-up file as shown in the Cloud tab. The "uri" points at Telegram, not at the phone. */
 fun BackupEntry.toCloudMedia() = LocalMedia(
     uri = CloudUri.thumb(chatId, messageId), name = name, mime = mime, size = size,
     dateTaken = dateTaken, dateModified = verifiedAt, width = 0, height = 0, durationMs = 0L,
-    isVideo = isVideo, bucket = "Cloud",
+    isVideo = isVideo, bucket = dir?.takeIf { it.isNotBlank() } ?: "Unfiled",
 )
 
 /**
@@ -245,7 +253,7 @@ object BackupEngine {
         if (pending.isEmpty() || !tg.awaitUsable()) return@run 0
         var confirmed = 0
         for ((chat, entries) in pending.groupBy { it.chatId }) {
-            val documents = try { withTimeoutOrNull(120_000L) { tg.scanHistory(chat) {} } }
+            val documents = try { withTimeoutOrNull(120_000L) { tg.scanHistory(chat) {} }?.docs }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { null } ?: continue
             for (entry in entries) {
@@ -285,6 +293,16 @@ object BackupEngine {
         val dao = BackupDb.get(appCtx).dao()
         val now = System.currentTimeMillis()
         msgs.distinct().forEach { dao.trashByMessage(it.first, it.second, now) }
+    }
+
+    /**
+     * Puts files into a folder. Only the record changes: no file is downloaded, re-uploaded or deleted.
+     * New uploads carry the folder in their caption, so a reinstall rebuilds it from the channel.
+     */
+    suspend fun setFolder(ctx: Context, keys: List<String>, folder: String?) = withContext(Dispatchers.IO) {
+        val dao = BackupDb.get(ctx).dao()
+        val clean = folder?.trim()?.takeIf { it.isNotBlank() }
+        keys.chunked(400).flatMap { dao.getMany(it) }.forEach { dao.update(it.copy(dir = clean)) }
     }
 
     /** "Delete from cloud" for photos chosen on the phone. */
@@ -339,6 +357,13 @@ object BackupEngine {
         val tg = TelegramClient.get(ctx)
         if (!tg.awaitUsable()) return false
         val chatId = tg.storage.value?.chatId ?: return false
+        // Safety rail: if the channel already holds a backup but this app has indexed nothing,
+        // the duplicate check has nothing to compare against and every file would upload twice.
+        // Stop, and tell the owner to rebuild the library first.
+        if (dao.cloudEntries().isEmpty() && tg.channelHasBackup(chatId)) {
+            live.value = Live("", 0f, ctx.getString(R.string.rf_index_missing))
+            return false
+        }
         running.value = true
         try {
             purgeExpiredCloudTrash(dao, tg)
@@ -426,7 +451,7 @@ object BackupEngine {
             dao.update(e)
             live.value = Live(e.uri, 0f, ctx.getString(R.string.rf_upload_stage_send))
             var lastReported = 0f
-            val res = tg.uploadDocument(chatId, temp.absolutePath, "memora:v1 sha256=$sha taken=${e.dateTaken}", thumb) { p ->
+            val res = tg.uploadDocument(chatId, temp.absolutePath, captionFor(e, sha), thumb) { p ->
                 if (p - lastReported >= 0.05f || p >= 1f) { lastReported = p; live.value = Live(e.uri, p, ctx.getString(R.string.rf_upload_stage_send)) }
             }
             val now = System.currentTimeMillis()

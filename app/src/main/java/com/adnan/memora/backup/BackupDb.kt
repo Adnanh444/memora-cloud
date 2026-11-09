@@ -26,6 +26,8 @@ data class BackupEntry(
     val error: String? = null,
     val duplicateOf: String? = null,
     @ColumnInfo(defaultValue = "0") val trashedAt: Long = 0,
+    /** Folder this file came from on the phone (Camera, WhatsApp…). Null = never known (older uploads). */
+    val dir: String? = null,
 ) {
     companion object {
         const val ST_QUEUED = "QUEUED"
@@ -130,7 +132,7 @@ interface BackupDao {
     suspend fun putHash(h: HashCacheEntry)
 }
 
-@Database(entities = [BackupEntry::class, HashCacheEntry::class], version = 2, exportSchema = false)
+@Database(entities = [BackupEntry::class, HashCacheEntry::class], version = 3, exportSchema = false)
 abstract class BackupDb : RoomDatabase() {
     abstract fun dao(): BackupDao
 
@@ -141,10 +143,18 @@ abstract class BackupDb : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Folders arrived in 2.0.0. Existing rows keep null and show under "Unfiled" until
+                // the app can read their folder back from the channel or from the phone.
+                db.execSQL("ALTER TABLE backup_entries ADD COLUMN dir TEXT")
+            }
+        }
+
         @Volatile private var inst: BackupDb? = null
         fun get(ctx: Context): BackupDb = inst ?: synchronized(this) {
             inst ?: Room.databaseBuilder(ctx.applicationContext, BackupDb::class.java, "memora_backup.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build().also { inst = it }
         }
     }

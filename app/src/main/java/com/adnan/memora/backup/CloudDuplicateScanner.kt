@@ -34,7 +34,7 @@ object CloudDuplicateScanner {
     sealed interface State {
         data object Idle : State
         data class Scanning(val found: Int) : State
-        data class Done(val groups: List<Group>, val extras: Int, val bytes: Long) : State
+        data class Done(val groups: List<Group>, val extras: Int, val bytes: Long, val complete: Boolean = true) : State
         data class Working(val done: Int, val total: Int) : State
         data class Removed(val removed: Int, val binned: Int) : State
         data class Failed(val message: String) : State
@@ -58,7 +58,8 @@ object CloudDuplicateScanner {
                 if (!tg.awaitUsable()) { _state.value = State.Failed(app.getString(R.string.cdup_offline)); return@launch }
                 val chatId = tg.storage.value?.chatId
                 if (chatId == null) { _state.value = State.Failed(app.getString(R.string.cdup_no_storage)); return@launch }
-                val docs = tg.scanHistory(chatId) { n -> _state.value = State.Scanning(n) }
+                val scan = tg.scanHistory(chatId) { n -> _state.value = State.Scanning(n) }
+                val docs = scan.docs
                 val grouped = docs.sortedBy { it.messageId }.groupBy { d ->
                     d.sha ?: "n:${d.name.lowercase()}:${d.size}"
                 }
@@ -74,6 +75,7 @@ object CloudDuplicateScanner {
                     groups = groups,
                     extras = groups.sumOf { it.extraIds.size },
                     bytes = groups.sumOf { it.size * it.extraIds.size },
+                    complete = scan.complete,
                 )
             } catch (t: Throwable) {
                 _state.value = State.Failed(t.message ?: app.getString(R.string.cdup_failed))
@@ -88,6 +90,12 @@ object CloudDuplicateScanner {
     fun removeExtras(ctx: Context) {
         val current = _state.value as? State.Done ?: return
         val app = ctx.applicationContext
+        // Never remove anything from a channel the app could only partly read: an unread message
+        // looks like an untracked copy, and deleting it would be permanent.
+        if (!current.complete) {
+            _state.value = State.Failed(app.getString(R.string.cdup_partial))
+            return
+        }
         val total = current.groups.sumOf { it.extraIds.size }
         scope.launch {
             val dao = BackupDb.get(app).dao()

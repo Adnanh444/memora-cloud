@@ -9,7 +9,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,21 +53,54 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     val ctx = LocalContext.current
     val rawCloud by vm.cloudFeed.collectAsState()
     val mediaFilter by vm.mediaFilter.collectAsState()
-    val items = remember(rawCloud, mediaFilter) { applyMediaFilter(rawCloud, mediaFilter) }
+    var sortField by rememberSaveable { mutableStateOf(SortField.TAKEN.name) }
+    var sortAsc by rememberSaveable { mutableStateOf(false) }
+    val sortMode = SortMode(SortField.valueOf(sortField), sortAsc)
+    val items = remember(rawCloud, mediaFilter, sortMode) { applyMediaFilter(rawCloud, mediaFilter).sortedFor(sortMode) }
+    // Folders come from each file's own phone folder (stored in the caption), so they survive a reinstall.
+    var manual by remember { mutableStateOf(com.adnan.memora.data.FolderPrefs.manual(ctx)) }
+    val folders = remember(items, manual) {
+        (items.map { it.bucket }.filter { it.isNotBlank() } + manual).distinct().sorted()
+    }
+    var newFolder by remember { mutableStateOf(false) }
+    var folderFilter by rememberSaveable { mutableStateOf("") }
+    val shown = remember(items, folderFilter) {
+        if (folderFilter.isEmpty()) items else items.filter { it.bucket == folderFilter }
+    }
     val selecting by vm.selecting.collectAsState()
     val cloudAll by vm.cloudMedia.collectAsState()
     val dl by CloudDownloader.state.collectAsState()
     val status by remember { TelegramClient.get(ctx) }.storageStatus.collectAsState()
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
 
+    if (newFolder) {
+        var name by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { newFolder = false },
+            title = { Text(stringResource(R.string.folder_new)) },
+            text = {
+                OutlinedTextField(value = name, onValueChange = { name = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.folder_name)) })
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.adnan.memora.data.FolderPrefs.add(ctx, name)
+                    manual = com.adnan.memora.data.FolderPrefs.manual(ctx)
+                    folderFilter = name.trim().replace('/', '-')
+                    newFolder = false
+                }) { Text(stringResource(R.string.folder_create)) }
+            },
+            dismissButton = { TextButton(onClick = { newFolder = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     val header = rememberCollapsingHeader()
     var countersVisible by rememberCountersVisible("cloud")
     Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "cloudHeader") { sel ->
-            if (sel) CloudSelectionHeader(vm, items)
+            if (sel) CloudSelectionHeader(vm, shown)
             else Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_cloud)) }; CounterToggle(countersVisible) { countersVisible = !countersVisible }; ThemeToggle()
+                    GradientTitle(stringResource(R.string.nav_cloud), Modifier.weight(1f)); IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, stringResource(R.string.lp_search_cloud)) }; CounterToggle(countersVisible) { countersVisible = !countersVisible }; SortButton(sortMode) { sortField = it.field.name; sortAsc = it.asc }; ThemeToggle()
                 }
 
             }
@@ -63,10 +109,39 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
         if (status !is StorageStatus.Verified) Text(stringResource(R.string.lp_verify_to_count), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         dl?.let { DownloadStrip(it) }
-        if (items.isNotEmpty()) {
+        if (!selecting && folders.size > 1) {
+            LazyRow(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item {
+                    FilterChip(
+                        selected = folderFilter.isEmpty(),
+                        onClick = { folderFilter = "" },
+                        label = { Text(stringResource(R.string.folder_all)) },
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = false,
+                        onClick = { newFolder = true },
+                        label = { Text(stringResource(R.string.folder_new)) },
+                        leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(16.dp)) },
+                    )
+                }
+                items(folders, key = { it }) { f ->
+                    FilterChip(
+                        selected = folderFilter == f,
+                        onClick = { folderFilter = if (folderFilter == f) "" else f },
+                        label = { Text(f) },
+                    )
+                }
+            }
+        }
+        if (shown.isNotEmpty()) {
             MediaGrid(
-                list = items, vm = vm,
-                onOpen = { i -> vm.openViewer(items, i); onOpenViewer() },
+                list = shown, vm = vm,
+                onOpen = { i -> vm.openViewer(shown, i); onOpenViewer() },
                 modifier = Modifier.fillMaxSize(), showBadges = false, gridKey = "cloud",
             )
         } else {
@@ -131,6 +206,35 @@ fun CloudSelectionHeader(vm: GalleryViewModel, pool: List<LocalMedia>) {
             Toast.makeText(ctx, R.string.cl_downloading, Toast.LENGTH_SHORT).show()
             vm.clearSelection()
         }, enabled = selection.isNotEmpty()) { Icon(Icons.Filled.Download, stringResource(R.string.cl_download)) }
+        var moving by remember { mutableStateOf(false) }
+        if (moving) {
+            val names = (pool.map { it.bucket } + com.adnan.memora.data.FolderPrefs.manual(ctx) + "Unfiled")
+                .filter { it.isNotBlank() }.distinct().sorted()
+            AlertDialog(
+                onDismissRequest = { moving = false },
+                title = { Text(stringResource(R.string.folder_move)) },
+                text = {
+                    Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                        names.forEach { n ->
+                            Text(
+                                n, modifier = Modifier.fillMaxWidth().clickable {
+                                    val keys = vm.selectedCloud().map { it.key }
+                                    scope.launch {
+                                        BackupEngine.setFolder(ctx, keys, if (n == "Unfiled") null else n)
+                                        vm.clearSelection(); vm.refresh()
+                                    }
+                                    moving = false
+                                }.padding(vertical = 12.dp),
+                            )
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { moving = false }) { Text(stringResource(R.string.cancel)) } },
+            )
+        }
+        IconButton(onClick = { moving = true }, enabled = selection.isNotEmpty()) {
+            Icon(Icons.Filled.DriveFileMove, stringResource(R.string.folder_move))
+        }
         IconButton(onClick = { confirm = true }, enabled = selection.isNotEmpty()) {
             ActionGlyph(Icons.Filled.Delete, stringResource(R.string.delete))
         }

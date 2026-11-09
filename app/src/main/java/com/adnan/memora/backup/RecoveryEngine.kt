@@ -22,7 +22,7 @@ sealed class RecState {
     object NoneFound : RecState()
     class Restoring(val found: Int) : RecState()
     class Matching(val done: Int, val total: Int) : RecState()
-    class Done(val recovered: Int, val matched: Int) : RecState()
+    class Done(val recovered: Int, val matched: Int, val incomplete: Boolean = false) : RecState()
     class Failed(val message: String) : RecState()
 }
 
@@ -95,7 +95,8 @@ object RecoveryEngine {
         try {
             val tg = TelegramClient.get(app)
             val dao = BackupDb.get(app).dao()
-            val docs = tg.scanHistory(chatId) { _state.value = RecState.Restoring(it) }
+            val scan = tg.scanHistory(chatId) { _state.value = RecState.Restoring(it) }
+            val docs = scan.docs
 
             val known = dao.all().filter { it.messageId != 0L }.map { it.chatId to it.messageId }.toHashSet()
             val seenSha = HashSet<String>()
@@ -111,7 +112,7 @@ object RecoveryEngine {
                         uri = "cloud:${d.chatId}:${d.messageId}", name = d.name, mime = mime, size = d.size,
                         dateTaken = d.takenMs, isVideo = isVideo(mime, d.name), sha256 = d.sha,
                         state = BackupEntry.ST_VERIFIED, chatId = d.chatId, messageId = d.messageId,
-                        uploadedAt = d.dateMs, verifiedAt = now,
+                        uploadedAt = d.dateMs, verifiedAt = now, dir = d.dir,
                     )
                 )
             }
@@ -127,7 +128,7 @@ object RecoveryEngine {
             } catch (_: Exception) {
                 // favorites/albums could not be read back; the photos themselves are restored
             }
-            _state.value = RecState.Done(entries.size, matched)
+            _state.value = RecState.Done(entries.size, matched, incomplete = !scan.complete)
         } catch (t: Exception) {
             _state.value = RecState.Failed(app.getString(R.string.rc_failed_generic))
         }
@@ -162,7 +163,7 @@ object RecoveryEngine {
                                 uri = m.key, name = m.name, mime = m.mime, size = m.size, dateTaken = m.dateTaken,
                                 isVideo = m.isVideo, sha256 = h, state = BackupEntry.ST_DUPLICATE,
                                 chatId = twin.chatId, messageId = twin.messageId, duplicateOf = twin.uri,
-                                verifiedAt = now,
+                                verifiedAt = now, dir = m.bucket.ifBlank { null },
                             )
                         )
                     )

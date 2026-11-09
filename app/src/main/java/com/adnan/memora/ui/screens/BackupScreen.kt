@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -34,7 +35,9 @@ import com.adnan.memora.telegram.StorageStatus
 import com.adnan.memora.telegram.TelegramClient
 import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.glass
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,6 +117,26 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
                     )
                 }
                 summary.stage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                // How much of the cloud this phone actually knows about. An empty or half-read index is
+                // the reason files get uploaded twice, so it is stated plainly instead of hidden.
+                val indexCounts by produceState(0 to 0, summary.phase, summary.done) {
+                    value = withContext(Dispatchers.IO) {
+                        val dao = com.adnan.memora.backup.BackupDb.get(ctx).dao()
+                        val cloud = dao.cloudEntries()
+                        cloud.size to cloud.count { it.uri.startsWith("content:") }
+                    }
+                }
+                if (indexCounts.first > 0) {
+                    Text(
+                        stringResource(R.string.bk_index_line, indexCounts.first.toString(), indexCounts.second.toString()),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.bk_index_empty),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 if (summary.needsConfirmation > 0) {
                     Text(stringResource(R.string.rf_upload_pending_count, summary.needsConfirmation), color = MaterialTheme.colorScheme.error)
                     Text(stringResource(R.string.rf_upload_uncertain), style = MaterialTheme.typography.bodySmall)
@@ -169,8 +192,19 @@ fun BackupScreen(vm: GalleryViewModel, onBack: () -> Unit, onOpenTelegram: () ->
             }
 
             if (folders.isNotEmpty()) {
-                Text(stringResource(R.string.bk_folders), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp))
+                val allOn = folders.all { it.name in cfg.folders }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(stringResource(R.string.bk_folders), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        apply(cfg.copy(folders = if (allOn) emptySet() else folders.map { it.name }.toSet()))
+                    }) {
+                        Text(
+                            stringResource(if (allOn) R.string.bk_all_off else R.string.bk_all_on),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 Column(Modifier.fillMaxWidth().glass()) {
                     folders.forEach { f ->
                         SwitchRow(f.name, stringResource(R.string.items_count, f.count), f.name in cfg.folders) { on ->

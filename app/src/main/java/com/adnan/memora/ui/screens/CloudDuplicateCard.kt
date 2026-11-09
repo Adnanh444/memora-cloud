@@ -67,9 +67,13 @@ fun CloudDuplicateCard() {
                     stringResource(R.string.cdup_result, s.groups.size, s.extras, formatSize(s.bytes)),
                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                 )
+                if (!s.complete) {
+                    Text(stringResource(R.string.cdup_partial), style = MaterialTheme.typography.bodySmall, color = error)
+                }
                 Text(stringResource(R.string.cdup_keep_oldest), style = MaterialTheme.typography.bodySmall)
                 Button(
                     onClick = { confirm = true },
+                    enabled = s.complete,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = error),
                 ) { Text(stringResource(R.string.cdup_remove)) }
