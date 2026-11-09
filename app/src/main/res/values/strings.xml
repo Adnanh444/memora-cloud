@@ -296,4 +296,21 @@
     <string name="cdup_offline">Telegram is not connected right now. Connect it and try again.</string>
     <string name="cdup_no_storage">No backup storage is set up in this app.</string>
     <string name="cdup_failed">The cloud could not be read. Please try again.</string>
+    <string name="sort_title">Sort</string>
+    <string name="sort_taken">Date taken</string>
+    <string name="sort_added">Recently added</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_size">Size</string>
+    <string name="bk_all_on">All on</string>
+    <string name="bk_all_off">All off</string>
+    <string name="bk_index_line">%1$s in cloud · %2$s phone photos already matched</string>
+    <string name="bk_index_empty">The cloud library is empty on this phone. Run “Restore existing backup” before uploading, otherwise files that are already in the cloud would be uploaded a second time.</string>
+    <string name="rf_index_missing">Cloud library not loaded — open Restore existing backup first</string>
+    <string name="rc_incomplete">The restore could not read the whole channel, so some files may be missing. Run it again when the connection is good.</string>
+    <string name="cdup_partial">The channel could not be read completely, so nothing was removed. Check the connection and scan again.</string>
+    <string name="folder_all">All</string>
+    <string name="folder_new">New folder</string>
+    <string name="folder_name">Folder name</string>
+    <string name="folder_create">Create</string>
+    <string name="folder_move">Move to folder</string>
 </resources>

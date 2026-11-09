@@ -2,6 +2,10 @@ package com.adnan.memora.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.adnan.memora.gallery.LocalMedia
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -32,14 +36,18 @@ import java.io.File
  * Memora's bin: what a delete moves out of the gallery, restorable for 30 days.
  * No Android dialog anywhere — the file was already moved by the time this screen opens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf(MediaBin.items(ctx)) }
     var pending by remember { mutableStateOf<MediaBin.Item?>(null) }
+    var preview by remember { mutableStateOf<MediaBin.Item?>(null) }
+    var selected by remember { mutableStateOf(setOf<String>()) }
     var confirmEmpty by remember { mutableStateOf(false) }
+    var confirmBulkDelete by remember { mutableStateOf(false) }
+    val selecting = selected.isNotEmpty()
     var note by remember { mutableStateOf<String?>(null) }
     val size = remember(items) { items.sumOf { it.size } }
 
@@ -58,12 +66,23 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.mb_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         Text(
-                            stringResource(R.string.mb_count, items.size, formatSize(size)),
+                            if (selecting) stringResource(R.string.selected_count, selected.size)
+                            else stringResource(R.string.mb_count, items.size, formatSize(size)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (items.isNotEmpty()) {
+                    if (selecting) {
+                        // Selection actions, same shape as the cloud bin
+                        IconButton(onClick = {
+                            items.filter { it.id in selected }.forEach { MediaBin.restore(ctx, it) }
+                            selected = emptySet(); reload(); vm.refresh()
+                        }) { Icon(Icons.Filled.Restore, stringResource(R.string.mb_restore)) }
+                        IconButton(onClick = { confirmBulkDelete = true }) {
+                            Icon(Icons.Filled.DeleteForever, stringResource(R.string.mb_delete_forever), tint = MaterialTheme.colorScheme.error)
+                        }
+                        IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel)) }
+                    } else if (items.isNotEmpty()) {
                         TextButton(onClick = { confirmEmpty = true }) { Text(stringResource(R.string.mb_empty_action)) }
                     }
                 }
@@ -97,7 +116,13 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                 items(items, key = { it.id }) { item ->
                     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable { pending = item }) {
+                        .combinedClickable(
+                            onClick = {
+                                if (selecting) selected = if (item.id in selected) selected - item.id else selected + item.id
+                                else preview = item
+                            },
+                            onLongClick = { selected = selected + item.id },
+                        )) {
                         AsyncImage(
                             model = File(MediaBin.dir(ctx), item.id),
                             contentDescription = item.name,
@@ -108,6 +133,17 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                             Icon(
                                 Icons.Filled.PlayArrow, null,
                                 Modifier.align(Alignment.Center).size(30.dp), tint = Color.White,
+                            )
+                        }
+                        if (item.id in selected) {
+                            Box(
+                                Modifier.matchParentSize()
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                            )
+                            Icon(
+                                Icons.Filled.CheckCircle, null,
+                                Modifier.align(Alignment.TopEnd).padding(6.dp).size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         Text(
@@ -122,6 +158,57 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                 }
             }
         }
+    }
+
+    preview?.let { item ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = { preview = null }, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                if (item.isVideo) {
+                    MediaVideoPlayer(
+                        media = LocalMedia(
+                            uri = android.net.Uri.fromFile(File(MediaBin.dir(ctx), item.id)),
+                            name = item.name, mime = item.mime, size = item.size, dateTaken = item.deletedAt,
+                            dateModified = item.deletedAt, width = 0, height = 0, durationMs = 0L,
+                            isVideo = true, bucket = item.bucket,
+                        ),
+                        onClose = { preview = null },
+                    )
+                } else {
+                    AsyncImage(
+                        model = File(MediaBin.dir(ctx), item.id), contentDescription = item.name,
+                        contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(12.dp),
+                    )
+                }
+                Row(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Button(onClick = {
+                        val ok = MediaBin.restore(ctx, item)
+                        preview = null; reload(); if (ok) vm.refresh()
+                    }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.mb_restore)) }
+                    OutlinedButton(onClick = { pending = item; preview = null }, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.mb_delete_forever))
+                    }
+                    IconButton(onClick = { preview = null }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel), tint = Color.White) }
+                }
+            }
+        }
+    }
+
+    if (confirmBulkDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmBulkDelete = false },
+            title = { Text(stringResource(R.string.mb_delete_forever)) },
+            text = { Text(stringResource(R.string.selected_count, selected.size)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    items.filter { it.id in selected }.forEach { MediaBin.deleteForever(ctx, it) }
+                    confirmBulkDelete = false; selected = emptySet(); reload()
+                }) { Text(stringResource(R.string.mb_delete_forever), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmBulkDelete = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 
     pending?.let { item ->

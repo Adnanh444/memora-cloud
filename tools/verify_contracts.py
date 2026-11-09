@@ -104,6 +104,12 @@ class RetainedInterfaceContracts(unittest.TestCase):
             if path.endswith("backup/BackupEngine.kt"):
                 continue  # 1.1.0: graceful pause + interrupted-upload cleanup; guarded by
                           # test_backup_engine_keeps_the_upload_rails below.
+            if path.endswith("telegram/TelegramClient.kt"):
+                continue  # 2.0.0: additive channel scan completeness + a read-only
+                          # channelHasBackup() probe. The TDLib surface itself is pinned by
+                          # test_telegram_backend_still_uses_the_same_tdlib_surface below.
+            if path.endswith("backup/RecoveryEngine.kt") or path.endswith("ui/screens/RecoveryScreen.kt"):
+                continue  # 2.0.0: reports an incomplete channel scan instead of hiding it.
             with self.subTest(path=path):
                 source=(ROOT/path).read_text()
                 if path.endswith("telegram/TelegramClient.kt"):
@@ -116,6 +122,22 @@ class RetainedInterfaceContracts(unittest.TestCase):
                     self.assertNotIn("TdApi.Delete",action)
                     source=source[:start]+source[end:]
                 self.assertEqual(hashlib.sha256(source.encode()).hexdigest(), expected)
+
+    def test_telegram_backend_still_uses_the_same_tdlib_surface(self):
+        """The Telegram system stays the 0.9.2 one: same TDLib requests, no web endpoints, no new client."""
+        tg = (JAVA / "telegram/TelegramClient.kt").read_text()
+        for symbol in (
+            "TdApi.GetChatHistory", "TdApi.SendMessage", "TdApi.DownloadFile", "TdApi.DeleteMessages",
+            "TdApi.SetChatNotificationSettings", "ChatListArchive", "suspend fun sendAndWait",
+            "fun deleteMessages(", "suspend fun scanHistory(",
+        ):
+            self.assertIn(symbol, tg)
+        # nothing outside Telegram is ever contacted: no http(s) endpoints in the backend
+        for folder in ("telegram", "backup", "cloud", "org"):
+            for f in (JAVA / folder).rglob("*.kt"):
+                text = f.read_text()
+                self.assertNotIn("https://", text, f"{f} adds a web endpoint outside Telegram")
+                self.assertNotIn("http://", text, f"{f} adds a web endpoint outside Telegram")
 
     def test_manual_credentials_are_directly_available_not_advanced_only(self):
         screen = (JAVA / "ui/screens/TelegramScreen.kt").read_text()
@@ -220,10 +242,115 @@ class RetainedInterfaceContracts(unittest.TestCase):
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("rememberSaveable(gridKey", grid)
 
-    def test_version_is_1_1_2(self):
+    def test_version_is_2_0_0(self):
         gradle = (ROOT / "app/build.gradle.kts").read_text()
-        self.assertIn('versionName = "1.1.2"', gradle)
-        self.assertIn("versionCode = 23", gradle)
+        self.assertIn('versionName = "2.0.0"', gradle)
+        self.assertIn("versionCode = 26", gradle)
+
+    def test_uploads_never_start_on_a_blind_index(self):
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        self.assertIn("channelHasBackup(chatId)", engine)
+        self.assertIn("rf_index_missing", engine)
+        tg = (JAVA / "telegram/TelegramClient.kt").read_text()
+        self.assertIn("data class ChannelScan", tg)
+        self.assertIn("fun channelHasBackup", tg)
+        # a scan that gave up early must say so, not look complete
+        self.assertIn("complete = true; break", tg)
+        recovery = (JAVA / "backup/RecoveryEngine.kt").read_text()
+        self.assertIn("incomplete = !scan.complete", recovery)
+        dup = (JAVA / "backup/CloudDuplicateScanner.kt").read_text()
+        self.assertIn("if (!current.complete)", dup)
+
+    def test_folders_can_be_created_and_files_moved(self):
+        prefs = (JAVA / "data/FolderPrefs.kt").read_text()
+        self.assertIn("fun add(", prefs)
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        self.assertIn("suspend fun setFolder(", engine)
+        # moving a file must never download, re-upload or delete anything
+        move = engine.split("suspend fun setFolder", 1)[1].split('}', 1)[0]
+        self.assertNotIn("delete", move.lower())
+        self.assertNotIn("upload", move.lower())
+        cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        self.assertIn("folder_new", cloud)
+        self.assertIn("folder_move", cloud)
+
+    def test_bin_previews_and_selects_like_the_cloud_bin(self):
+        bin_screen = (JAVA / "ui/screens/MemoraBinScreen.kt").read_text()
+        self.assertIn("preview = item", bin_screen)          # tap opens a full-screen preview
+        self.assertIn("onLongClick", bin_screen)             # long-press starts selection
+        self.assertIn("MediaVideoPlayer(", bin_screen)       # videos play, not just a thumbnail
+        self.assertIn("selected = selected + item.id", bin_screen)
+        self.assertIn("confirmBulkDelete", bin_screen)
+        # the bin must never be emptied without an explicit confirmation
+        self.assertIn("confirmEmpty", bin_screen)
+
+    def test_folders_are_persisted_and_survive_a_reinstall(self):
+        db = (JAVA / "backup/BackupDb.kt").read_text()
+        self.assertIn("val dir: String? = null", db)
+        self.assertIn("version = 3", db)
+        self.assertIn("MIGRATION_2_3", db)
+        self.assertIn("ADD COLUMN dir TEXT", db)
+        engine = (JAVA / "backup/BackupEngine.kt").read_text()
+        # the folder rides in the caption, so a rebuild can restore it without re-uploading bytes
+        self.assertIn("dir=$dir", engine)
+        self.assertIn("dir = bucket.ifBlank { null }", engine)
+        tg = (JAVA / "telegram/TelegramClient.kt").read_text()
+        self.assertIn('Regex("dir=([^', tg)
+        recovery = (JAVA / "backup/RecoveryEngine.kt").read_text()
+        self.assertIn("dir = d.dir", recovery)
+        cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        self.assertIn("folderFilter", cloud)
+        self.assertIn("FilterChip(", cloud)
+
+    def test_sort_and_folder_toggle_exist(self):
+        sort = (JAVA / "ui/screens/SortControl.kt").read_text()
+        for field in ("TAKEN", "ADDED", "NAME", "SIZE"):
+            self.assertIn(field, sort)
+        cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        self.assertIn("sortedFor(sortMode)", cloud)
+        photos = (JAVA / "ui/screens/PhotosScreen.kt").read_text()
+        self.assertIn("sortedFor(sortMode)", photos)
+        backup = (JAVA / "ui/screens/BackupScreen.kt").read_text()
+        self.assertIn("bk_all_on", backup)
+        self.assertIn("bk_index_line", backup)
+
+    def test_release_build_targets_the_current_sdk(self):
+        gradle = (ROOT / "app/build.gradle.kts").read_text()
+        self.assertIn("compileSdk = 35", gradle)
+        self.assertIn("targetSdk = 35", gradle)
+
+    def test_release_is_signed_with_the_permanent_key(self):
+        gradle = (ROOT / "app/build.gradle.kts").read_text()
+        for env in ("KEYSTORE_FILE", "KEYSTORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"):
+            self.assertIn(env, gradle)
+        # minification must keep TDLib's native entry points
+        proguard = (ROOT / "app/proguard-rules.pro").read_text()
+        self.assertIn("-keep class org.drinkless.tdlib.**", proguard)
+        # Workflow files are deliberately NOT contract-guarded: the repository keeps its own copies and
+        # the unzip step never overwrites .github, so any hash or text assertion on them fails a build
+        # that is actually correct. Signing itself is enforced by build.yml at run time.
+
+    def test_no_permission_that_play_protect_flags_as_spying(self):
+        manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text()
+        for bad in (
+            "QUERY_ALL_PACKAGES", "SYSTEM_ALERT_WINDOW", "BIND_ACCESSIBILITY_SERVICE",
+            "REQUEST_INSTALL_PACKAGES", "READ_SMS", "RECEIVE_SMS", "READ_CONTACTS",
+            "RECORD_AUDIO", "CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION",
+            "CALL_PHONE", "READ_CALL_LOG", "PROCESS_OUTGOING_CALLS",
+        ):
+            self.assertNotIn(bad, manifest)
+        # exactly the permissions the app needs, nothing else
+        declared = set(re.findall(r'android:name="android\.permission\.([A-Z_]+)"', manifest))
+        self.assertEqual(declared, {
+            "INTERNET", "READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO", "READ_EXTERNAL_STORAGE",
+            "WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE", "POST_NOTIFICATIONS",
+            "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_DATA_SYNC",
+        })
+        # no backup of app data to Google, no cleartext traffic
+        self.assertIn('android:allowBackup="false"', manifest)
+        self.assertNotIn("usesCleartextTraffic=\"true\"", manifest)
+        # only the launcher activity is exported
+        self.assertEqual(manifest.count("android:exported=\"true\""), 1)
 
     def test_cloud_duplicate_check_reads_the_channel_and_keeps_the_first_copy(self):
         src = (JAVA / "backup/CloudDuplicateScanner.kt").read_text()

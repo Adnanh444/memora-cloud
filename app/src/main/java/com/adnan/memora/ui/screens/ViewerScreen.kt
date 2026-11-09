@@ -173,8 +173,9 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             exit = fadeOut(tween(150)),
         ) {
             CompositionLocalProvider(LocalContentColor provides Color.White) {
-                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp)
-                    .clip(RoundedCornerShape(18.dp)).background(Color(0xE61A222D)),
+                Row(Modifier.fillMaxWidth().navigationBarsPadding()
+                    .padding(horizontal = 22.dp, vertical = 10.dp)
+                    .clip(RoundedCornerShape(24.dp)).background(Color(0xE61A222D)),
                     verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack, modifier = Modifier.weight(1f)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
@@ -211,7 +212,7 @@ fun ViewerScreen(vm: GalleryViewModel, onBack: () -> Unit) {
             DetailsPanel(
                 m = current, backup = backup[current.key], backupOn = summary.phase != BackupPhase.NOT_SET_UP, isCloud = isCloud,
                 onClose = { detailsOpen = false },
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.46f),
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.38f),
             )
         }
 

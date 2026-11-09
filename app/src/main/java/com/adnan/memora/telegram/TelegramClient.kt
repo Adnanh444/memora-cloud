@@ -48,10 +48,15 @@ sealed class UploadResult {
     class Uncertain(val messageId: Long = 0L) : UploadResult()
 }
 
+/** Result of a channel scan: the files found, and whether the scan reached the very start. */
+data class ChannelScan(val docs: List<CloudDoc>, val complete: Boolean)
+
 /** A file found in the storage channel while rebuilding the cloud library. */
 class CloudDoc(
     val chatId: Long, val messageId: Long, val name: String, val mime: String, val size: Long,
     val sha: String?, val takenMs: Long, val dateMs: Long,
+    /** Folder stored in the caption (2.0.0+). Null for uploads from older versions. */
+    val dir: String? = null,
 )
 
 class StorageCandidate(val chatId: Long, val storageId: String, val title: String)
@@ -677,20 +682,27 @@ class TelegramClient private constructor(private val app: Context) {
         if (!cap.startsWith("memora:v1")) return null
         val sha = Regex("sha256=([0-9a-fA-F]{64})").find(cap)?.groupValues?.get(1)?.lowercase()
         val taken = Regex("taken=(\\d+)").find(cap)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        val dir = Regex("dir=([^\\s]+)").find(cap)?.groupValues?.get(1)?.replace('_', ' ')
         val d = c.document
         val dateMs = m.date * 1000L
         return CloudDoc(
             chatId, m.id, d.fileName ?: "file", d.mimeType ?: "application/octet-stream", d.document.size,
-            sha, if (taken > 0) taken else dateMs, dateMs,
+            sha, if (taken > 0) taken else dateMs, dateMs, dir,
         )
     }
 
-    /** Reads the whole channel history and returns every Memora file in it (newest first). */
-    suspend fun scanHistory(chatId: Long, onProgress: (Int) -> Unit): List<CloudDoc> {
+    /**
+     * Reads the whole channel history.
+     * [complete] is true only when the scan really reached the first message of the channel.
+     * A scan that gave up early is reported as incomplete instead of silently returning a short list —
+     * a partial list looks like "these files are not in the cloud" and that is how duplicates happen.
+     */
+    suspend fun scanHistory(chatId: Long, onProgress: (Int) -> Unit): ChannelScan {
         val out = LinkedHashMap<Long, CloudDoc>()
         val seen = HashSet<Long>()
         var from = 0L
         var stagnant = 0
+        var complete = false
         while (true) {
             val q = TdApi.GetChatHistory()
             q.chatId = chatId
@@ -700,7 +712,7 @@ class TelegramClient private constructor(private val app: Context) {
             q.onlyLocal = false
             val r = sendAndWait(q) as? TdApi.Messages ?: break
             val msgs = r.messages ?: emptyArray()
-            if (msgs.isEmpty()) break
+            if (msgs.isEmpty()) { complete = true; break }
             var added = 0
             for (m in msgs) {
                 if (!seen.add(m.id)) continue
@@ -717,7 +729,22 @@ class TelegramClient private constructor(private val app: Context) {
                 from = msgs.minOf { it.id }
             }
         }
-        return out.values.toList()
+        return ChannelScan(out.values.toList(), complete)
+    }
+
+    /** True when the newest message in the channel is a Memora file, i.e. the channel already holds a backup. */
+    suspend fun channelHasBackup(chatId: Long): Boolean = try {
+        val q = TdApi.GetChatHistory()
+        q.chatId = chatId
+        q.fromMessageId = 0
+        q.offset = 0
+        q.limit = 1
+        q.onlyLocal = false
+        val r = sendAndWait(q) as? TdApi.Messages
+        val m = r?.messages?.firstOrNull()
+        m != null && parseDoc(chatId, m) != null
+    } catch (_: Throwable) {
+        false
     }
 
     /** Removes the storage from this app only. The Telegram channel and its content are untouched. */

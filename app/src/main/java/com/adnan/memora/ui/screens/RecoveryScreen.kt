@@ -82,6 +82,9 @@ fun RecoveryScreen(onBack: () -> Unit, onOpenCloud: () -> Unit) {
                             Text(stringResource(R.string.rc_done_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         }
                         Text(stringResource(R.string.rc_done_body, s.recovered, s.matched))
+                        if (s.incomplete) {
+                            Text(stringResource(R.string.rc_incomplete), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
                         Button(onClick = onOpenCloud, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.rc_open_cloud)) }
                     }
                 }

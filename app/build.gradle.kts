@@ -12,13 +12,13 @@ val tgApiHash = System.getenv("TELEGRAM_API_HASH")?.trim()?.filter { it.isLetter
 
 android {
     namespace = "com.adnan.memora"
-    compileSdk = 34
+    compileSdk = 35
     defaultConfig {
         applicationId = "com.adnan.memora"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 23
-        versionName = "1.1.2"
+        targetSdk = 35
+        versionCode = 26
+        versionName = "2.0.0"
         // Keep only the languages the app supports (strips unused library translations).
         resourceConfigurations += listOf("en", "bn")
         buildConfigField("int", "TELEGRAM_API_ID", tgApiId.toString())

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -213,7 +214,17 @@ fun MediaGrid(
                 when (val e = built.entries[i]) {
                     is Entry.Header -> Text(
                         e.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp),
+                        modifier = Modifier
+                            .padding(start = 12.dp, top = 14.dp, bottom = 6.dp)
+                            .clickable {
+                                // Select everything under this month, like tapping a day header in Google Photos.
+                                val from = i + 1
+                                val to = built.entries.indexOfFirst { it is Entry.Header && built.entries.indexOf(it) > i }
+                                    .let { if (it == -1) built.entries.size else it }
+                                val keys = built.entries.subList(from, to)
+                                    .filterIsInstance<Entry.Item>().map { it.media.key }
+                                vm.selection.value = vm.selection.value + keys
+                            },
                     )
                     is Entry.Item -> MediaCell(
                         m = e.media,

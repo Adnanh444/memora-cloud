@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.adnan.memora.gallery.CoverageMath
 import com.adnan.memora.gallery.CoverageItem
@@ -49,10 +50,8 @@ import com.adnan.memora.ui.theme.appear
 import com.adnan.memora.ui.theme.glass
 
 private fun requiredMediaPermissions(): Array<String> = when {
-    Build.VERSION.SDK_INT >= 34 -> arrayOf(
-        Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO,
-        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
-    )
+    // "Select photos" (partial) access is deliberately NOT requested: a backup has to see the whole
+    // library, and a partial grant would silently show only a handful of items. Full access or none.
     Build.VERSION.SDK_INT >= 33 -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
     Build.VERSION.SDK_INT >= 29 -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -90,7 +89,10 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
 
     val rawItems by vm.photosFeed.collectAsState()
     val mediaFilter by vm.mediaFilter.collectAsState()
-    val items = remember(rawItems, mediaFilter) { applyMediaFilter(rawItems, mediaFilter) }
+    var sortField by rememberSaveable { mutableStateOf(SortField.TAKEN.name) }
+    var sortAsc by rememberSaveable { mutableStateOf(false) }
+    val sortMode = SortMode(SortField.valueOf(sortField), sortAsc)
+    val items = remember(rawItems, mediaFilter, sortMode) { applyMediaFilter(rawItems, mediaFilter).sortedFor(sortMode) }
     val loading by vm.loading.collectAsState()
     val selecting by vm.selecting.collectAsState()
     val summary by vm.backupSummary.collectAsState()
@@ -106,7 +108,12 @@ fun PhotosScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onSearch: () ->
     Column(Modifier.fillMaxSize().statusBarsPadding().nestedScroll(header.connection)) {
         Crossfade(selecting, label = "header") { sel ->
             if (sel) SelectionHeader(vm, items)
-            else SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings, countersVisible = countersVisible, onToggleCounters = { countersVisible = !countersVisible })
+            else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    SearchPill(onSearch = onSearch, onSelect = { vm.enterSelectMode() }, onSettings = onSettings, countersVisible = countersVisible, onToggleCounters = { countersVisible = !countersVisible })
+                }
+                SortButton(sortMode) { sortField = it.field.name; sortAsc = it.asc }
+            }
         }
         if (!selecting && countersVisible) CoveragePanel(coverage.photos.total, coverage.videos.total, if (knownCoverage) coverage.photos.verified else null, if (knownCoverage) coverage.videos.verified else null,
             header.compact, header::toggle, phoneLibrary = true)
