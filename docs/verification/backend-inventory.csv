@@ -35,7 +35,7 @@ app/src/main/java/com/adnan/memora/gallery/CoverageMath.kt,AUTHORIZED_CHANGE,,75
 app/src/main/java/com/adnan/memora/data/AppLockPolicy.kt,AUTHORIZED_CHANGE,,0865bd2f525d4cd4c2b56d7dabcbdb5e10fb286eedb6f5c0909f2af00d8c5227
 app/src/main/java/com/adnan/memora/data/NetworkPolicy.kt,NEW_HELPER,-,3ae362be5e726e3bfe22ef0ec855fc693ba5e8fde37d9e1a66ab4e55b338eabc
 app/src/main/java/com/adnan/memora/data/MediaBin.kt,NEW_HELPER,-,9cddf1044cdd18680ffa42339e47ed03a229eeb5e6b513cf6c971a2ad9335626
-app/src/main/java/com/adnan/memora/ui/screens/MemoraBinScreen.kt,NEW_HELPER,-,a5996941c55cd71e35045d795db8d1f0854900fb8436e2a4b94156009dbcfe51
+app/src/main/java/com/adnan/memora/ui/screens/MemoraBinScreen.kt,NEW_HELPER,-,0db9abccc171ff68db2fc95e1b3e782124d8215450df78b7667f7e02cd578da5
 app/src/main/java/com/adnan/memora/ui/screens/MediaFilterPill.kt,NEW_HELPER,-,9eb7e17679a7e8063cad39e65a3f22f5ca9f6d2ab54dfe9164495a886226fa24
 app/src/main/java/com/adnan/memora/backup/CloudDuplicateScanner.kt,guarded,,95218fe1f275e426cf36e81d453f4f6ecdecc232fec2aa514cd91bce51865021
 app/src/main/java/com/adnan/memora/ui/screens/CloudDuplicateCard.kt,guarded,,e3377c60dd7a5447276f0cb6dfc0ef30402d67d0b8db93488891ef1cf48640ef

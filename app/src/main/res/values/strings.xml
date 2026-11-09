@@ -313,4 +313,5 @@
     <string name="folder_name">Folder name</string>
     <string name="folder_create">Create</string>
     <string name="folder_move">Move to folder</string>
+    <string name="folder_empty">This folder is empty. Select files in All and move them here.</string>
 </resources>

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.adnan.memora.gallery.LocalMedia
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,11 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +38,13 @@ import com.adnan.memora.R
 import com.adnan.memora.data.MediaBin
 import java.io.File
 
+private enum class BinSort(val label: Int) {
+    NEWEST(com.adnan.memora.R.string.sort_added),
+    OLDEST(com.adnan.memora.R.string.sort_taken),
+    NAME(com.adnan.memora.R.string.sort_name),
+    SIZE(com.adnan.memora.R.string.sort_size),
+}
+
 /**
  * Memora's bin: what a delete moves out of the gallery, restorable for 30 days.
  * No Android dialog anywhere — the file was already moved by the time this screen opens.
@@ -42,6 +55,16 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf(MediaBin.items(ctx)) }
+    var sort by remember { mutableStateOf(BinSort.NEWEST) }
+    var sortOpen by remember { mutableStateOf(false) }
+    val shown = remember(items, sort) {
+        when (sort) {
+            BinSort.NEWEST -> items.sortedByDescending { it.deletedAt }
+            BinSort.OLDEST -> items.sortedBy { it.deletedAt }
+            BinSort.NAME -> items.sortedBy { it.name.lowercase() }
+            BinSort.SIZE -> items.sortedByDescending { it.size }
+        }
+    }
     var pending by remember { mutableStateOf<MediaBin.Item?>(null) }
     var preview by remember { mutableStateOf<MediaBin.Item?>(null) }
     var selected by remember { mutableStateOf(setOf<String>()) }
@@ -83,6 +106,20 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                         }
                         IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel)) }
                     } else if (items.isNotEmpty()) {
+                        Box {
+                            IconButton(onClick = { sortOpen = true }) {
+                                Icon(Icons.Filled.Sort, stringResource(R.string.sort_title))
+                            }
+                            DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                                BinSort.entries.forEach { s2 ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(s2.label)) },
+                                        trailingIcon = { if (s2 == sort) Icon(Icons.Filled.Check, null) },
+                                        onClick = { sort = s2; sortOpen = false },
+                                    )
+                                }
+                            }
+                        }
                         TextButton(onClick = { confirmEmpty = true }) { Text(stringResource(R.string.mb_empty_action)) }
                     }
                 }
@@ -113,7 +150,7 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(items, key = { it.id }) { item ->
+                items(shown, key = { it.id }) { item ->
                     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainer)
                         .combinedClickable(
@@ -189,6 +226,18 @@ fun MemoraBinScreen(vm: com.adnan.memora.gallery.GalleryViewModel, onBack: () ->
                     }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.mb_restore)) }
                     OutlinedButton(onClick = { pending = item; preview = null }, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.mb_delete_forever))
+                    }
+                    IconButton(onClick = {
+                        val idx = shown.indexOfFirst { it.id == item.id }
+                        if (idx > 0) preview = shown[idx - 1]
+                    }, enabled = shown.indexOfFirst { it.id == item.id } > 0) {
+                        Icon(Icons.Filled.ChevronLeft, stringResource(R.string.back), tint = Color.White)
+                    }
+                    IconButton(onClick = {
+                        val idx = shown.indexOfFirst { it.id == item.id }
+                        if (idx in 0 until shown.lastIndex) preview = shown[idx + 1]
+                    }, enabled = shown.indexOfFirst { it.id == item.id } in 0 until shown.lastIndex) {
+                        Icon(Icons.Filled.ChevronRight, null, tint = Color.White)
                     }
                     IconButton(onClick = { preview = null }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel), tint = Color.White) }
                 }

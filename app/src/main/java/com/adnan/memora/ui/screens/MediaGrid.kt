@@ -116,58 +116,53 @@ fun MediaGrid(
     val badgesOn = showBadges && summary.phase != BackupPhase.NOT_SET_UP
     val gap = 4.dp
 
-    // ---- long-press + drag selection -------------------------------------------------
-    // Press one cell and keep dragging: every cell the finger crosses flips in the same
-    // direction as the first one. Fast drags are interpolated so nothing is skipped, the
-    // list auto-scrolls when the finger reaches an edge, and each flip gives a light tick.
+    // ---- drag selection -----------------------------------------------------------------------
+    // Google-Photos behaviour: the first cell is the anchor, the whole span between the anchor and the
+    // finger is selected (or deselected) together, dragging back shrinks the span, and holding at an
+    // edge keeps scrolling while it keeps extending. No cell is skipped, nothing is left behind.
     var dragSelect by remember { mutableStateOf(false) }
-    var lastDraggedKey by remember { mutableStateOf<String?>(null) }
-    var lastDragPoint by remember { mutableStateOf<Offset?>(null) }
+    var anchorIndex by remember { mutableIntStateOf(-1) }
+    var baseSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
     var gridCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var scrollJob by remember { mutableStateOf<Job?>(null) }
+    var lastTickKey by remember { mutableStateOf<String?>(null) }
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val edgePx = with(LocalDensity.current) { 90.dp.toPx() }
 
-    fun entryUnder(root: Offset): Entry.Item? {
+    fun indexUnder(root: Offset): Int? {
         val coords = gridCoords?.takeIf { it.isAttached } ?: return null
-        val info = state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+        return state.layoutInfo.visibleItemsInfo.firstOrNull { item ->
             val topLeft = coords.localToRoot(Offset(item.offset.x.toFloat(), item.offset.y.toFloat()))
             root.x >= topLeft.x && root.x < topLeft.x + item.size.width &&
                 root.y >= topLeft.y && root.y < topLeft.y + item.size.height
-        } ?: return null
-        return built.entries.getOrNull(info.index) as? Entry.Item
+        }?.index
     }
 
-    /** Flips one cell, but only if it is still on the wrong side of the drag direction. */
-    fun flipAt(root: Offset) {
-        val entry = entryUnder(root) ?: return
-        val key = entry.media.key
-        if (key == lastDraggedKey) return
-        lastDraggedKey = key
-        val isSelected = key in vm.selection.value
-        if (dragSelect == isSelected) return
-        vm.toggle(key)
-        try { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Throwable) {}
+    /** Applies the whole span in one go, so the result is always anchor → finger and nothing else. */
+    fun applyRange(endIndex: Int) {
+        if (anchorIndex < 0) return
+        val from = minOf(anchorIndex, endIndex)
+        val to = maxOf(anchorIndex, endIndex)
+        val keys = (from..to).mapNotNull { (built.entries.getOrNull(it) as? Entry.Item)?.media?.key }
+        val next = if (dragSelect) baseSelection + keys else baseSelection - keys
+        if (next != vm.selection.value) {
+            vm.selection.value = next
+            val newest = keys.lastOrNull { it != lastTickKey }
+            if (newest != null && newest != lastTickKey) {
+                lastTickKey = newest
+                try { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) } catch (_: Throwable) {}
+            }
+        }
     }
 
-    fun cellPitch(): Float {
-        val first = state.layoutInfo.visibleItemsInfo.firstOrNull { !built.entries.getOrNull(it.index).isHeader() }
-            ?: return 1f
-        return minOf(first.size.width, first.size.height).toFloat().coerceAtLeast(1f)
+    fun endDrag() {
+        scrollJob?.cancel(); scrollJob = null
+        anchorIndex = -1
+        lastTickKey = null
     }
 
-    /** Walks the segment between two finger samples so no cell is jumped over. */
-    fun dragAlong(root: Offset) {
-        val previous = lastDragPoint
-        lastDragPoint = root
-        if (previous == null) { flipAt(root); return }
-        val delta = root - previous
-        val steps = (delta.getDistance() / (cellPitch() * 0.4f)).toInt().coerceIn(1, 32)
-        for (i in 1..steps) flipAt(previous + delta * (i / steps.toFloat()))
-    }
-
-    /** Keeps scrolling while the finger rests near the top or bottom edge. */
+    /** Keeps extending the span while the finger rests near the top or bottom edge. */
     fun autoScroll(root: Offset) {
         val coords = gridCoords?.takeIf { it.isAttached }
         if (coords == null) { scrollJob?.cancel(); scrollJob = null; return }
@@ -182,17 +177,12 @@ fun MediaGrid(
         if (scrollJob?.isActive == true) return
         scrollJob = scope.launch {
             while (isActive) {
-                state.scrollBy(direction * 14f)
+                state.scrollBy(direction * 18f)
                 delay(16)
-                flipAt(root)
+                // the finger has not moved but new cells appeared under it: extend to them
+                indexUnder(root)?.let { applyRange(it) }
             }
         }
-    }
-
-    fun endDrag() {
-        scrollJob?.cancel(); scrollJob = null
-        lastDragPoint = null
-        lastDraggedKey = null
     }
 
     PinchGrid(gridKey, modifier) { columns, gesture ->
@@ -238,15 +228,18 @@ fun MediaGrid(
                         onLongClick = { vm.toggle(e.media.key) },
                         onDragStart = { root ->
                             val key = e.media.key
-                            val wasSelected = key in vm.selection.value
-                            dragSelect = !wasSelected
-                            lastDraggedKey = key
-                            lastDragPoint = root
-                            vm.toggle(key)
+                            baseSelection = vm.selection.value
+                            dragSelect = key !in baseSelection
+                            anchorIndex = i
+                            lastTickKey = null
+                            applyRange(i)
                             try { haptics.performHapticFeedback(HapticFeedbackType.LongPress) } catch (_: Throwable) {}
                             autoScroll(root)
                         },
-                        onDrag = { root -> dragAlong(root); autoScroll(root) },
+                        onDrag = { root ->
+                            indexUnder(root)?.let { applyRange(it) }
+                            autoScroll(root)
+                        },
                         onDragEnd = { endDrag() },
                     )
                 }

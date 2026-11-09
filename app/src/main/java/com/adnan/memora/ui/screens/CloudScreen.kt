@@ -109,7 +109,7 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
         if (status !is StorageStatus.Verified) Text(stringResource(R.string.lp_verify_to_count), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         dl?.let { DownloadStrip(it) }
-        if (!selecting && folders.size > 1) {
+        if (!selecting) {
             LazyRow(
                 Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -137,6 +137,14 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
                     )
                 }
             }
+        }
+        if (shown.isEmpty() && items.isNotEmpty()) {
+            Text(
+                stringResource(R.string.folder_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+            )
         }
         if (shown.isNotEmpty()) {
             MediaGrid(

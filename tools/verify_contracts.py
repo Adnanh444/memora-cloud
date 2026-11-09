@@ -197,11 +197,13 @@ class RetainedInterfaceContracts(unittest.TestCase):
             self.assertIn(part, pill)
 
     def test_long_press_drag_selects_and_deselects_serially(self):
+        """A drag selects or deselects as a span, in the direction set by the first cell."""
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
         self.assertIn("detectDragGesturesAfterLongPress", grid)
-        self.assertIn("lastDraggedKey", grid)
+        self.assertIn("anchorIndex", grid)
+        self.assertIn("baseSelection", grid)
         # deselect mode: the drag continues in the opposite direction of the first cell
-        self.assertIn("dragSelect = !wasSelected", grid)
+        self.assertIn("dragSelect = key !in baseSelection", grid)
 
     def test_backup_engine_keeps_the_upload_rails(self):
         """BackupEngine is no longer byte-identical to 0.9.2; these are the rails that must survive."""
@@ -273,6 +275,12 @@ class RetainedInterfaceContracts(unittest.TestCase):
         cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
         self.assertIn("folder_new", cloud)
         self.assertIn("folder_move", cloud)
+
+    def test_bin_matches_the_cloud_bin_feature_set(self):
+        b = (JAVA / "ui/screens/MemoraBinScreen.kt").read_text()
+        for feature in ("BinSort", "DropdownMenu(", "ChevronLeft", "ChevronRight",
+                        "onLongClick", "confirmBulkDelete", "confirmEmpty", "MediaVideoPlayer("):
+            self.assertIn(feature, b)
 
     def test_bin_previews_and_selects_like_the_cloud_bin(self):
         bin_screen = (JAVA / "ui/screens/MemoraBinScreen.kt").read_text()
@@ -379,13 +387,24 @@ class RetainedInterfaceContracts(unittest.TestCase):
         backup = (JAVA / "ui/screens/BackupScreen.kt").read_text()
         self.assertIn("softWrap = false", backup)
 
-    def test_drag_selection_is_interpolated_and_auto_scrolls(self):
+    def test_drag_selection_fills_the_whole_span(self):
+        """Google-Photos behaviour: anchor + span, shrinks when dragged back, extends while scrolling."""
         grid = (JAVA / "ui/screens/MediaGrid.kt").read_text()
-        self.assertIn("fun dragAlong", grid)
-        self.assertIn("cellPitch()", grid)
-        self.assertIn("fun autoScroll", grid)
+        self.assertIn("fun applyRange(", grid)
+        self.assertIn("var anchorIndex", grid)
+        self.assertIn("baseSelection + keys", grid)   # selecting
+        self.assertIn("baseSelection - keys", grid)   # deselecting the same span
+        self.assertIn("minOf(anchorIndex, endIndex)", grid)  # works from any corner
+        self.assertIn("fun autoScroll(", grid)
         self.assertIn("state.scrollBy", grid)
         self.assertIn("performHapticFeedback", grid)
+
+    def test_folder_row_shows_from_the_first_folder(self):
+        cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        # a single folder (or a hand-made empty one) must still render the row and the + button
+        self.assertNotIn("folders.size > 1", cloud)
+        self.assertIn("folder_new", cloud)
+        self.assertIn("folder_empty", cloud)
 
     def test_optional_lock_uses_system_credential_not_stored_custom_pin(self):
         lock = (JAVA / "ui/AppLockGate.kt").read_text()
