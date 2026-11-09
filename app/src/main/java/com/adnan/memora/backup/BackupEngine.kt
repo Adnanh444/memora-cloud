@@ -50,6 +50,9 @@ fun BackupEntry.toCloudMedia() = LocalMedia(
     isVideo = isVideo, bucket = dir?.takeIf { it.isNotBlank() } ?: "Unfiled",
 )
 
+/** How many old files were traced back to their phone folder, and how many are no longer on this phone. */
+data class BackfillResult(val fixed: Int, val gone: Int)
+
 /**
  * Queue -> hash while copying -> duplicate check -> upload to Telegram -> verify.
  * RULE: a file is only ever uploaded if its type (photos/videos) AND its folder are turned ON in Backup settings.
@@ -301,21 +304,28 @@ object BackupEngine {
      * downloaded or deleted, and nothing is written to Telegram. Safe to run on every start: it only
      * touches rows that still have no folder.
      */
-    suspend fun backfillFolders(ctx: Context): Int = withContext(Dispatchers.IO) {
+    suspend fun backfillFolders(ctx: Context): BackfillResult = withContext(Dispatchers.IO) {
         val dao = BackupDb.get(ctx).dao()
-        val todo = dao.all().filter { it.dir == null && it.uri.startsWith("content:") }
-        if (todo.isEmpty()) return@withContext 0
-        val byKey = MediaRepository(ctx).loadAll().associateBy { it.key }
+        val todo = dao.all().filter { it.dir.isNullOrBlank() && it.state != BackupEntry.ST_DELETED }
+        if (todo.isEmpty()) return@withContext BackfillResult(0, 0)
+        val lib = MediaRepository(ctx).loadAll()
+        val byUri = lib.associateBy { it.key }
+        val byNameSize = lib.associateBy { it.name to it.size }
+        val byDateSize = lib.associateBy { it.dateTaken to it.size }
         var fixed = 0
+        var gone = 0
         for (e in todo) {
-            val bucket = byKey[e.uri]?.bucket?.takeIf { it.isNotBlank() } ?: continue
+            // The stored phone link first; then the same file after its MediaStore id changed.
+            val hit = byUri[e.uri] ?: byNameSize[e.name to e.size] ?: byDateSize[e.dateTaken to e.size]
+            val bucket = hit?.bucket?.takeIf { it.isNotBlank() }
+            if (bucket == null) { gone++; continue }
             dao.update(e.copy(dir = bucket))
             fixed++
         }
-        fixed
+        BackfillResult(fixed, gone)
     }
 
-    /**
+/**
      * Puts files into a folder. Only the record changes: no file is downloaded, re-uploaded or deleted.
      * New uploads carry the folder in their caption, so a reinstall rebuilds it from the channel.
      */

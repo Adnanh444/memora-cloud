@@ -308,6 +308,10 @@
     <string name="rf_index_missing">Cloud library not loaded — open Restore existing backup first</string>
     <string name="rc_incomplete">The restore could not read the whole channel, so some files may be missing. Run it again when the connection is good.</string>
     <string name="cdup_partial">The channel could not be read completely, so nothing was removed. Check the connection and scan again.</string>
+    <string name="cl_backfilled_gone">Put %1$d old files back in their folders · %2$d are no longer on this phone</string>
+    <string name="cl_folder_audit">%1$d in folders · %2$d unfiled</string>
+    <string name="cl_folder_audit_ok">All %1$d files are in a folder</string>
+    <string name="cl_backfilled">Put %1$d old files back into their folders</string>
     <string name="folder_all">All</string>
     <string name="folder_new">New folder</string>
     <string name="folder_name">Folder name</string>

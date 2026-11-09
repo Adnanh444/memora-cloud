@@ -282,6 +282,16 @@ class RetainedInterfaceContracts(unittest.TestCase):
         self.assertIn("CloudDownloader.resume", backup)
         self.assertIn("CloudDownloader.pause", backup)
 
+    def test_folder_audit_is_shown_from_real_counts(self):
+        d = (JAVA / "ui/screens/CloudScreen.kt").read_text()
+        # the line under the chips is computed from the loaded list, never a stored/assumed number
+        self.assertIn("val placed = items.count { !it.bucket.isNullOrBlank() }", d)
+        self.assertIn("val lost = items.size - placed", d)
+        self.assertIn("R.string.cl_folder_audit_ok", d)
+        # the backfill reports itself instead of working silently
+        self.assertIn("R.string.cl_backfilled", d)
+        self.assertIn("BackupEngine.backfillFolders", d)
+
     def test_old_files_get_their_own_folder_back(self):
         engine = (JAVA / "backup/BackupEngine.kt").read_text()
         backfill = engine.split("suspend fun backfillFolders", 1)[1].split("/**\n     * Puts files into a folder", 1)[0]
@@ -289,8 +299,14 @@ class RetainedInterfaceContracts(unittest.TestCase):
         # it only reads the phone library and writes the folder column
         for forbidden in ("uploadDocument", "dao.delete", "trashByMessage", "deleteMessages", "CloudDownloader"):
             self.assertNotIn(forbidden, backfill)
+        # a changed MediaStore id must not leave a file unfiled: link, then name+size, then date+size
+        self.assertIn("byNameSize[e.name to e.size]", backfill)
+        self.assertIn("byDateSize[e.dateTaken to e.size]", backfill)
+        # it tells the user how many could not be traced, instead of staying silent
+        self.assertIn("BackfillResult(fixed, gone)", backfill)
         cloud = (JAVA / "ui/screens/CloudScreen.kt").read_text()
         self.assertIn("backfillFolders(ctx)", cloud)
+        self.assertIn("res.gone", cloud)
 
     def test_folders_can_be_created_and_files_moved(self):
         prefs = (JAVA / "data/FolderPrefs.kt").read_text()

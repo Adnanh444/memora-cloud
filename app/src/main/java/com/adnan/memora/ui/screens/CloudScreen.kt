@@ -77,8 +77,16 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
     DisposableEffect(Unit) { onDispose { vm.clearSelection() } }
     // Files uploaded before 2.0 have no folder yet: fill them in once, quietly, from the phone library.
     LaunchedEffect(Unit) {
-        val fixed = try { BackupEngine.backfillFolders(ctx) } catch (_: Throwable) { 0 }
-        if (fixed > 0) vm.refresh()
+        val res = try { BackupEngine.backfillFolders(ctx) } catch (_: Throwable) { null }
+        if (res != null && res.fixed > 0) {
+            vm.refresh()
+            Toast.makeText(
+                ctx,
+                if (res.gone == 0) ctx.getString(R.string.cl_backfilled, res.fixed)
+                else ctx.getString(R.string.cl_backfilled_gone, res.fixed, res.gone),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     if (newFolder) {
@@ -145,6 +153,18 @@ fun CloudScreen(vm: GalleryViewModel, onOpenViewer: () -> Unit, onOpenStorage: (
                     )
                 }
             }
+        }
+        if (!selecting && items.isNotEmpty()) {
+            // Plain truth from the loaded list: how many files have a folder, how many don't.
+            val placed = items.count { !it.bucket.isNullOrBlank() }
+            val lost = items.size - placed
+            Text(
+                if (lost == 0) stringResource(R.string.cl_folder_audit_ok, placed)
+                else stringResource(R.string.cl_folder_audit, placed, lost),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (lost == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+            )
         }
         if (!selecting && folderFilter.isNotEmpty() && shown.isNotEmpty()) {
             // Inside a folder: download the whole folder, queued with pause/resume.
